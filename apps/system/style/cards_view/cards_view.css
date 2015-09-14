@@ -15,6 +15,7 @@
   /* Requires that scrolling always end at a snap point
      when the operation completes (hard snap). */
   scroll-snap-type: mandatory;
+  direction: ltr;
 }
 
 @media not all and (-moz-physical-home-button) {
@@ -95,9 +96,8 @@ html[dir="rtl"] #cards-view .no-recent-apps { right: 3rem; }
   /* Defines the center of each card (column) as the
      coordinate that should be used for snapping */
   scroll-snap-coordinate: 50% 50%;
+  left: 25vw; /* BiDi proof */
 }
-html[dir="ltr"] #cards-view .card { left: 25vw; }
-html[dir="rtl"] #cards-view .card { right: 25vw; }
 
 #cards-view .card.sliding {
   transition: transform var(--transition-duration);

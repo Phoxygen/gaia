@@ -32,7 +32,7 @@
     /**
      * The setting that enables/disables using screenshots vs. icons for the
      *  card preview
-     * @memberof TaskCard.prototype
+     * @memberof TaskManager.prototype
      */
     SCREENSHOT_PREVIEWS_SETTING_KEY: 'app.cards_view.screenshots.enabled',
 
@@ -61,7 +61,7 @@
      */
     unfilteredStack: null,
 
-   /**
+    /**
      * Index into StackManager's stack array
      * @memberOf TaskManager.prototype
      */
@@ -101,7 +101,7 @@
         if (!this.stack.length) {
           return null;
         }
-        var idx = this._getPositionFromScrollOffset(this.element.scrollLeft);
+        var idx = this._getIndexFromScrollOffset(this.element.scrollLeft);
         return this.getCardAtIndex(idx);
       }
     },
@@ -206,7 +206,8 @@
   };
 
   TaskManager.prototype._centerCardAtPosition = function(idx, smooth) {
-    var position = (this.cardWidth + this.CARD_GUTTER) * idx;
+    var position = this._getScrollOffsetFromIndex(idx);
+
     if (smooth) {
       this.element.scrollTo({left: position, top: 0, behavior: 'smooth'});
     } else {
@@ -834,17 +835,17 @@
   TaskManager.prototype._placeCards = function(firstIndex, smoothly) {
     this._setContentWidth(this.stack.length);
 
-    var cardWidth = this.cardWidth;
     // add left margin to center the first card
     var startX = (this.windowWidth - this.cardWidth) / 2;
     var cardElements = Array.from(this.cardsList.children).slice(firstIndex);
 
     cardElements.forEach((elm, idx) => {
-      var offset = (cardWidth + this.CARD_GUTTER);
-      var left = startX + offset * (idx + firstIndex);
+      var pos = this._getScrollOffsetFromIndex(idx + firstIndex);
+      var left = startX + pos;
       elm.style.left = left + 'px';
+
       if (smoothly) {
-        elm.style.transform = 'translateX(' +offset+ 'px)';
+        elm.style.transform = 'translateX(' + left + 'px)';
         setTimeout(() => {
           elm.classList.add('sliding');
           elm.style.transform = 'translateX(0)';
@@ -874,14 +875,30 @@
     }
   };
 
-  TaskManager.prototype._getPositionFromScrollOffset = function(offset) {
-    var lastIndex = this.stack.length -1;
+  /**
+   * LTR/RTL notes:
+   * Given a stack of views [0, 1, 2], cards-list will display:
+   *     [0][1][2] in LTR
+   *     [2][1][0] in RTL
+   * cards-list's direction is forced to LTR, so cards can be positionned using
+   * left and the view centering is done using scrollTo. The differences between
+   * LTR and RTL are localized in the 2 helpers functions doing the conversion
+   * between 'index' and 'position'.
+   */
+  TaskManager.prototype._getScrollOffsetFromIndex = function(idx) {
+    var lastIndex = this.stack.length - 1;
+    var isRTL = document.documentElement.dir === 'rtl';
+    var index = isRTL ? (lastIndex - idx) : idx;
+    return (this.cardWidth + this.CARD_GUTTER) * index;
+  };
+
+  TaskManager.prototype._getIndexFromScrollOffset = function(offset) {
+    var lastIndex = this.stack.length - 1;
     if (lastIndex < 0) {
       return -1;
     }
-    var pos = Math.min(lastIndex,
-                       Math.floor(offset / this.cardWidth));
-    return pos;
+    var idx = Math.min(lastIndex, Math.floor(offset / this.cardWidth));
+    return document.documentElement.dir === 'rtl' ? lastIndex - idx : idx;
   };
 
   exports.TaskManager = TaskManager;
