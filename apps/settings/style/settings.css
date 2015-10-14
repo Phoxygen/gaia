@@ -125,7 +125,8 @@ section[role="region"] > div {
  */
 
 gaia-header a:first-child,
-gaia-header button:first-child {
+gaia-header button:first-child,
+gaia-header [data-icon="close"] {
   color: var(--header-action-button-color) !important;
 }
 
@@ -286,12 +287,10 @@ body[data-filter-by="connectivity"] #root > div [data-category="connectivity"] {
 .disabled h2,
 .disabled label,
 .disabled select,
-.disabled gaia-checkbox,
-.disabled gaia-radio,
-.disabled gaia-switch,
+gaia-checkbox[disabled],
 gaia-radio[disabled],
 gaia-switch[disabled] {
-  opacity: 0.6;
+  opacity: 0.3;
   pointer-events: none;
 }
 
@@ -655,23 +654,6 @@ span.passcode-digit[data-dot]::before {
   padding-bottom: 1em;
 }
 
-.apn-list .apn-item .name:active {
-  background-color: #B2F2FF;
-}
-
-.apn-list .apn-item label.name {
-  -moz-padding-end: 1rem;
-}
-
-.apn-list .apn-item label.name::after {
-  content: '';
-  position: absolute;
-  background-color: #E6E6E3;
-  right: 3.5rem;
-  width: 0.1rem;
-  height: calc(100% - 1rem);
-  top: 0.5rem;
-}
 
 /******************************************************************************
  * Internet sharing (Wi-Fi HotSpot)
@@ -1040,6 +1022,30 @@ ul li > label.range-icons.volume input {
 }
 
 /******************************************************************************
+ * Firefox Sync
+ */
+
+.fxsync-intro {
+  background-image: url('images/fxsync_intro.png');
+  background-repeat: no-repeat;
+  background-size: 16.4rem;
+  margin: 3rem auto 0;
+  width: 17rem;
+  height: 21.5rem;
+}
+
+p.fxsync-unverified-warning {
+  background-image: url('images/fxsync_error.png');
+  background-repeat: no-repeat;
+  background-size: 2rem;
+  background-position: left center;
+  -moz-padding-start: 3rem;
+  padding-top: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/******************************************************************************
  * Developer and Developer HUD
  *
  * Override default behavior to let checkbox text wrap on multiple lines
@@ -1117,16 +1123,6 @@ html[dir="rtl"] section li.password > label > span:after {
 html[dir="rtl"] #mediaStorage .stackedbar-color-label {
   left: unset;
   right: 1.5rem;
-}
-
-html[dir="rtl"] .apn-list .apn-item .name {
-  left: unset;
-  right: -1.5rem;
-}
-
-html[dir="rtl"] .apn-list .apn-item:after {
-  left: 3.5rem;
-  right: unset;
 }
 
 html[dir="rtl"] ul li > label.range-icons span:last-child {

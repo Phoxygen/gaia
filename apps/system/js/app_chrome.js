@@ -6,13 +6,12 @@
 /* global MozActivity */
 /* global SettingsListener */
 /* global Service */
-/* global Icon */
 /* global UrlHelper */
+/* global SystemBanner */
 
 'use strict';
 
 (function(exports) {
-  const DEFAULT_ICON_URL = '/style/chrome/images/default_icon.png';
   const PINNING_PREF = 'dev.gaia.pinning_the_web';
   // 32px + 4px padding added by the Icon renderer
   const ICON_SIZE = 32 + 4;
@@ -150,6 +149,7 @@
                 <button type="button" class="forward-button"
                         data-l10n-id="forward-button" disabled></button>
                 <div class="urlbar js-chrome-ssl-information">
+                  <div class="urlbar-hit-area"></div>
                   <span class="pb-icon"></span>
                   <div class="site-icon"></div>
                   <div class="chrome-ssl-indicator chrome-title-container">
@@ -225,7 +225,11 @@
     this.menuButton = this.element.querySelector('.menu-button');
     this.windowsButton = this.element.querySelector('.windows-button');
     this.title = this.element.querySelector('.chrome-title-container > .title');
+    this.urlbar = this.element.querySelector('.urlbar');
     this.siteIcon = this.element.querySelector('.site-icon');
+    LazyLoader.load(['js/system_banner.js']).then(function() {
+      this.systemBanner = new SystemBanner();
+    }.bind(this));
 
     if (this.useCombinedChrome()) {
       this.pinDialog = this.element.querySelector('.pin-dialog');
@@ -320,7 +324,9 @@
   };
 
   AppChrome.prototype.handleClickEvent = function ac_handleClickEvent(evt) {
-    switch (evt.target) {
+    evt.stopPropagation(); // We'll handle all clicks here, thanks.
+
+    switch (evt.currentTarget) {
       case this.reloadButton:
         this.app.reload();
         break;
@@ -342,6 +348,7 @@
         this.onClickSiteIcon();
         break;
 
+      case this.urlbar:
       case this.title:
         this.titleClicked();
         break;
@@ -356,7 +363,8 @@
 
       case this.newWindowButton:
         evt.stopImmediatePropagation();
-        this.onNewWindow();
+        // XXX: this isn't a function!
+        // this.onNewWindow();
         break;
 
       case this.newPrivateWinButton:
@@ -417,6 +425,7 @@
       var manifestURL = this.app.webManifestURL;
       var manifestObject = this.app.webManifest;
       var pageUrl = this.app.config.url;
+      var systemBanner = this.systemBanner;
 
       siteObject.type = 'url';
       siteObject.iconable = false;
@@ -449,7 +458,11 @@
       IconsHelper.getIcon(siteObject.url, null,
         {icons: this.app.favicons}, siteObject).then(icon => {
         siteObject.icon = icon;
-        BookmarksDatabase.put(siteObject, siteObject.id).catch(function(error) {
+        BookmarksDatabase.put(siteObject, siteObject.id)
+          .then(function() {
+            systemBanner.show('pinned-to-home-screen-message');
+          })
+          .catch(function(error) {
            console.error('Failed to save site: ' + error);
         });
       });
@@ -464,6 +477,18 @@
     this.collapse();
     this.pinned = true;
     this.app.element.classList.remove('collapsible');
+  };
+
+  /**
+   * Remove pinned state from the browser.
+   */
+  AppChrome.prototype.unpin = function ac_unpin() {
+    this.hidePinDialogCard();
+    this.pinned = false;
+    if (this.app.config && this.app.config.scrollable) {
+      this.app.element.classList.add('collapsible');
+    }
+    this.expand();
   };
 
   AppChrome.prototype.titleClicked = function ac_titleClicked() {
@@ -595,6 +620,7 @@
       this.reloadButton.addEventListener('click', this);
       this.backButton.addEventListener('click', this);
       this.forwardButton.addEventListener('click', this);
+      this.urlbar.addEventListener('click', this);
       this.title.addEventListener('click', this);
       this.scrollable.addEventListener('scroll', this);
       this.menuButton.addEventListener('click', this);
@@ -704,12 +730,25 @@
       return;
     }
 
-    // We allow the bar to collapse if the page is greater than or equal to
-    // the area of the window with a collapsed bar. Strictly speaking, we'd
-    // allow it to collapse if it was greater than the area of the window with
-    // the expanded bar, but due to prevalent use of -webkit-box-sizing and
-    // plain mistakes, this causes too many false-positives.
-    if (evt.detail.height >= this.containerElement.clientHeight) {
+    // Cache the last given scroll area height so this function can be called
+    // without an event object.
+    if (evt) {
+      this.browserScrollHeight = evt.detail.height;
+    }
+
+    // Don't respond to this event when we aren't visible. The container size
+    // isn't updated in this case, which can ending up incorrectly causing it
+    // to be labelled as scrollable.
+    if (!this.app.isVisible()) {
+      return;
+    }
+
+    // We allow the bar to collapse if the page is greater than the area of the
+    // window with a collapsed bar. Strictly speaking, we'd allow it to
+    // collapse if it was greater than the area of the window with the expanded
+    // bar, but due to prevalent use of -webkit-box-sizing and plain mistakes,
+    // this causes too many false-positives.
+    if (this.browserScrollHeight > this.containerElement.clientHeight) {
       this.containerElement.classList.add('scrollable');
     }
   };
@@ -749,9 +788,10 @@
     };
 
   AppChrome.prototype.setThemeColor = function ac_setThemColor(color) {
-    // Do not set theme color for private windows
+    // Overwrite theme color for private windows and add private class
     if (this.app.isPrivateBrowser()) {
-      return;
+      color = '#392E54';
+      this.containerElement.classList.add('private');
     }
 
     var bottomApp = this.app.getBottomMostWindow();
@@ -871,7 +911,6 @@
 
       // Check if this is just a location-change to an anchor tag.
       var anchorChange = false;
-      var firstLocationChange = !this._currentURL;
 
       if (this._currentURL && this.app.config.url) {
         anchorChange =
@@ -906,9 +945,8 @@
       // on the same domain than the previous one.
       // In both cases, we look for the best icon after `mozbrowserloadend`.
       var origin = new URL(this._currentURL).origin;
-
       if (this._currentOrigin !== origin) {
-        this.setSiteIcon(DEFAULT_ICON_URL);
+        this.setSiteIcon();
         this._currentOrigin = origin;
       }
 
@@ -926,10 +964,10 @@
           this.expand();
         }
         this.scrollable.scrollTop = 0;
-        this.pinned = firstLocationChange ? this.pinned : false;
-        if (this.app.config && this.app.config.scrollable) {
-          this.app.element.classList.add('collapsible');
-        }
+        Service.request('PinsManager:isPinned', this._currentURL)
+          .then(function(isPinned) {
+            isPinned ? this.pin() : this.unpin();
+          }.bind(this));
       }
 
       // Set the title for the private browser landing page.
@@ -1129,17 +1167,8 @@
    *
    * @param {string?} url
    */
-  AppChrome.prototype.setSiteIcon = function ac_setSiteIcon(url) {
+  AppChrome.prototype.setSiteIcon = function ac_setSiteIcon() {
     if (!this.siteIcon || this.app.isPrivateBrowser()) {
-      return;
-    }
-
-    if (url) {
-      var icon = new Icon(this.siteIcon, url);
-      icon.render({
-        size: ICON_SIZE
-      });
-      this._currentIconUrl = url;
       return;
     }
 
@@ -1147,12 +1176,13 @@
       .then(iconObject => {
         // We compare the original icon URL, otherwise there is a flickering
         // effect because a different object url is created each time.
-        if (this._currentIconUrl !== iconObject.url) {
+        if (this._currentIconUrl !== iconObject.originalUrl) {
           this.siteIcon.style.backgroundImage = iconObject.url;
-          this._currentIconUrl = iconObject.url;
+          this._currentIconUrl = iconObject.originalUrl;
         }
       })
       .catch((err) => {
+        this.siteIcon.style.backgroundImage = '';
         this.app.debug('setSiteIcon, error from getSiteIcon: %s', err);
       });
   };
@@ -1168,6 +1198,7 @@
       this.pinSiteIcon.style.backgroundImage = iconObject.url;
     }).catch((err) => {
       this.app.debug('setPinPreviewIcon, error from getSiteIcon: %s', err);
+      this.pinSiteIcon.style.backgroundImage = '';
     });
   };
 

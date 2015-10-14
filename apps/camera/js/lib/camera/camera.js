@@ -762,17 +762,15 @@ Camera.prototype.takePicture = function(options) {
   }
 
   function onError(error) {
-    var title = navigator.mozL10n.get('error-saving-title');
-    var text = navigator.mozL10n.get('error-saving-text');
-
     // if taking a picture fails because there's
     // already a picture being taken we ignore it.
     if (error.name === 'NS_ERROR_IN_PROGRESS') {
       complete();
     } else {
-      alert(title + '. ' + text);
-      debug('error taking picture');
-      complete();
+      navigator.mozL10n.formatValue('error-saving').then((value) => {
+        alert(value);
+        complete();
+      });
     }
   }
 
@@ -1005,6 +1003,7 @@ Camera.prototype.stoppedRecording = function(recorded) {
 
   if (recorded) {
     video = mix({}, this.video);
+    video.poster = mix({}, video.poster);
 
     // Re-fetch the blobs from storage
     this.storage.video.get(video.filepath).then(function(blob) {
@@ -1024,10 +1023,11 @@ Camera.prototype.stoppedRecording = function(recorded) {
 // TODO: This is UI stuff, so
 // shouldn't be handled in this file.
 Camera.prototype.onRecordingError = function(id) {
-  id = id && id !== 'FAILURE' ? id : 'error-recording';
-  var title = navigator.mozL10n.get(id + '-title');
-  var text = navigator.mozL10n.get(id + '-text');
-  alert(title + '. ' + text);
+  if (id) {
+    navigator.mozL10n.formatValue(id).then((value) => {
+      alert(value);
+    });
+  }
   this.ready();
 };
 
@@ -1348,6 +1348,9 @@ Camera.prototype.setSceneMode = function(value){
  * @return {Boolean}
  */
 Camera.prototype.isZoomSupported = function() {
+  if (!this.mozCamera) {
+    return false;
+  }
   return this.mozCamera.capabilities.zoomRatios.length > 1;
 };
 

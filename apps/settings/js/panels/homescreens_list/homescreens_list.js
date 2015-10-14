@@ -1,7 +1,7 @@
 /**
  * Handle home screens list panel functionality.
  */
-define(require => {
+define(function(require) {
   'use strict';
 
   var AppsCache = require('modules/apps_cache');
@@ -100,6 +100,7 @@ define(require => {
       li.dataset.appIndex = index;
 
       var radio = document.createElement('gaia-radio');
+      radio.className = 'split';
       radio.name = 'homescreen';
       radio.value = index;
       radio.checked = (app.manifestURL === this.manifestURL);

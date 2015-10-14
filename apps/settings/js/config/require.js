@@ -8,6 +8,8 @@ require.config({
   // This is the default value of the loading timeout, we will disable the
   // timeout in the production build
   waitSeconds: 7,
+  // shim global object into AMD format
+  // XXX Bug 1207471 organized in alphabet order
   shim: {
     'settings': {
       exports: 'Settings'
@@ -105,13 +107,15 @@ require.config({
     'shared/airplane_mode_helper': {
       exports: 'AirplaneModeHelper'
     },
-    'shared/homescreens/vertical_preferences': {
-      exports: 'verticalPreferences'
+    'shared/homescreens/homescreen_settings': {
+      exports: 'homescreenSettings'
     },
     'shared/stk_helper': {
       exports: 'STKHelper'
     }
   },
+  // exclude reusable file in modules
+  // XXX Bug 1207472 organized in alphabet order
   modules: [
     {
       name: 'main'
@@ -307,7 +311,10 @@ require.config({
     },
     {
       name: 'panels/homescreens/panel',
-      exclude: ['main']
+      exclude: [
+        'main',
+        'modules/apps_cache'
+      ]
     },
     {
       name: 'panels/sound/panel',
@@ -376,6 +383,20 @@ require.config({
     {
       name: 'panels/call_barring_passcode_change/panel',
       exclude: ['main']
+    },
+    {
+      name: 'panels/firefox_sync/panel',
+      exclude: [
+        'main',
+        'modules/settings_utils'
+      ]
+    },
+    {
+      name: 'panels/usb_storage/panel',
+      exclude: [
+        'main',
+        'modules/media_storage'
+      ]
     }
   ]
 });

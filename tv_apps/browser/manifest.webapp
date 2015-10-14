@@ -2,11 +2,13 @@
   "name": "Browser",
   "description": "Browser",
   "launch_path": "/index.html",
-  "type": "privileged",
+  "type": "certified",
   "permissions": {
     "browser":{},
     "systemXHR":{},
-    "desktop-notification" : {}
+    "desktop-notification" : {},
+    "firefox-accounts": {},
+    "moz-extremely-unstable-and-will-change-webcomponents":{}
   },
   "locales": {
     "ar": {
@@ -42,6 +44,12 @@
           "required":true, "pattern":"https?:.{1,16384}", "patternFlags":"i"
         }
       }
+    }
+  },
+  "connections": {
+    "webpage-open": {
+      "description": "connection for opening webpage",
+      "rules": {}
     }
   }
 }

@@ -66,6 +66,14 @@
   // packet sending events and is at a higher level then DEBUG.
   AT.LOGINFO = false;
 
+  // Constants for BatchTiming Batch Type
+  AT.NORMAL_BATCH = true;
+  AT.RETRY_BATCH = false;
+
+  //Constants for BatchTiming reset
+  AT.RESET_BATCH = true;
+  AT.EXISTING_BATCH = false;
+
   function debug(...args) {
     if (!AT.DEBUG) {
       return;
@@ -171,7 +179,7 @@
     }
     this.collecting = true;
 
-    this.metrics = new BatchTiming(true);
+    this.metrics = new BatchTiming(AT.RESET_BATCH);
     this.mergeTimeStart = Date.now();
     this.merge = false;
 
@@ -267,6 +275,7 @@
       // If it's a merge request mark it as completed.
       if (self.merge) {
         self.merge = false;
+        self.clearPayload(false);
       }
       // if it's a request to transmit, transmit the merged metrics.
       else if (self.collecting && navigator.onLine) {
@@ -285,10 +294,12 @@
   };
 
   // Signal gecko to clear out the histograms and start fresh.
-  AT.prototype.clearPayload = function clearPayload() {
+  AT.prototype.clearPayload = function clearPayload(resetStorage) {
     // TODO: Add this line below to AdvancedTelemetryHelper as an API.
     console.info('telemetry|MGMT|CLEARMETRICS');
-    asyncStorage.setItem(AT.METRICS_KEY, null);
+    if (resetStorage) {
+      asyncStorage.setItem(AT.METRICS_KEY, null);
+    }
   };
 
   // Start a timer to notify when to send the payload.
@@ -313,10 +324,6 @@
     if (!this.collecting || !navigator.onLine) {
       return;
     }
-
-    // But assume that it will succeed and start collecting new metrics now
-    this.metrics = new BatchTiming(false);
-    this.startBatch();
 
     var deviceInfoQuery = {
       'app.update.channel': 'unknown',
@@ -360,13 +367,16 @@
       // successfully. We are already set up to collect the next batch of data.
       function onload() {
         loginfo('Transmitted Successfully.');
-        AdvancedTelemetry.prototype.clearPayload();
+        AdvancedTelemetry.prototype.clearPayload(true);
+        // Start a new batch.
+        self.startNewBatch();
       }
 
       function retry(e) {
-        // If the attempt to transmit a batch of data fails, refresh the payload
-        loginfo('App usage metrics transmission failure:', e.type);
-        self.getPayload();
+        loginfo('Advanced Telemetry metrics transmission failure:', e.type);
+        // Start a retry batch.  Don't clear the payload yet.  It will continue
+        // to accumulate until the retry interval expires.
+        self.startRetryBatch();
       }
 
       request.send({
@@ -377,6 +387,16 @@
         ontimeout: retry
       });
     }
+  };
+
+  AT.prototype.startNewBatch = function startNewBatch() {
+    this.metrics = new BatchTiming(AT.EXISTING_BATCH, AT.RETRY_BATCH);
+    this.startBatch();
+  };
+
+  AT.prototype.startRetryBatch = function startRetryBatch() {
+    this.metrics = new BatchTiming(AT.EXISTING_BATCH, AT.NORMAL_BATCH);
+    this.startBatch();
   };
 
   // Check if there are existing metrics that need to be merged, if so,
@@ -509,7 +529,7 @@
   /*
    * A helper class that tracks the start time of the current batch.
    */
-  function BatchTiming(startup) {
+  function BatchTiming(startup, retry) {
     var self = this;
     this.start = Date.now();
     if (startup) {
@@ -530,7 +550,11 @@
       });
     } else {
       asyncStorage.setItem(AT.BATCH_KEY, this.start);
-      this.interval = AT.REPORT_INTERVAL;
+      if (retry) {
+        self.interval = AT.RETRY_INTERVAL;
+      } else {
+        self.interval = AT.REPORT_INTERVAL;
+      }
     }
   }
 

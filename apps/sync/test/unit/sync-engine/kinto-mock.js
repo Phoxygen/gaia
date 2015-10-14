@@ -1,6 +1,5 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Any copyright is dedicated to the Public Domain.
+ * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 'use strict';
 
@@ -8,43 +7,50 @@
 /* exported Kinto */
 
 var Kinto = (function() {
-  var KintoCollectionMock = function(collectionName, fireConflicts=[]) {
+  var mockProblem =  null;
+  var listData = {};
+
+  var KintoCollectionMock = function(collectionName, options = {}) {
     this.collectionName = collectionName;
-    this._remoteTransformerUsed = null;
     this.data = null;
-    this.fireConflicts = fireConflicts;
+    this.fireConflicts = options.fireConflicts || [];
+    this._idSchemaUsed = options.idSchema; // Not mocking default UUID IdSchema.
+    this._remoteTransformersUsed = options.remoteTransformers;
   };
   KintoCollectionMock.prototype = {
     sync: function() {
       var dataRecordIn = JSON.parse(JSON.stringify(
         SynctoServerFixture.remoteData[this.collectionName]));
-        var transformOut = (item) => {
-          if (!this._remoteTransformerUsed) {
-            return Promise.resolve(item);
-          }
-          return this._remoteTransformerUsed.encode(item);
-        };
+      var transformOut = (item) => {
+        if (!this._remoteTransformersUsed) {
+          return Promise.resolve(item);
+        }
+        // We're only mocking the case where there is just one
+        // remoteTransformer.
+        return this._remoteTransformersUsed[0].encode(item);
+      };
 
-        var transformIn = () => {
-          if (!this._remoteTransformerUsed) {
-            return Promise.resolve();
-          }
-          try {
-            return this._remoteTransformerUsed.decode(dataRecordIn).
-                then(decoded => {
-              dataRecordIn = decoded;
-            });
-          } catch(err) {
-            return Promise.reject(err);
-          }
-        };
-
-        var pushOut = () => {
-        if (!this.listData) {
+      var transformIn = () => {
+        if (!this._remoteTransformersUsed) {
           return Promise.resolve();
         }
-        this.pushData = [];
-        return Promise.all(this.listData.data.map(item => {
+        try {
+          // We're only mocking the case where there is just one
+          // remoteTransformer.
+          return this._remoteTransformersUsed[0].decode(dataRecordIn).
+              then(decoded => {
+            dataRecordIn = decoded;
+          });
+        } catch(err) {
+          return Promise.reject(err);
+        }
+      };
+
+      var pushOut = () => {
+        if (!listData[this.collectionName]) {
+          return Promise.resolve();
+        }
+        return Promise.all(listData[this.collectionName].data.map(item => {
           var dataRecordOut = JSON.parse(JSON.stringify(item));
           transformOut(dataRecordOut).then(encoded => {
             this.pushData.push(encoded);
@@ -60,51 +66,54 @@ var Kinto = (function() {
       };
 
       var storeListData = () => {
-        if (!this.listData) {
-          this.listData = { data: [ dataRecordIn ] };
+        if (!listData[this.collectionName]) {
+          listData[this.collectionName] = { data: [ dataRecordIn ] };
         }
         return Promise.resolve({ ok: true, conflicts: this.fireConflicts });
       };
 
+      var markSyncCount = (syncResults) => {
+        if (!Kinto.syncCount[this.collectionName]) {
+          Kinto.syncCount[this.collectionName] = 0;
+        }
+        Kinto.syncCount[this.collectionName]++;
+        return Promise.resolve(syncResults);
+      };
+
       var reportError = (error) => {
-        this.listData = { data: [] };
+        listData[this.collectionName] = { data: [] };
         return Promise.resolve({ ok: false, conflicts: [], errors: [ error ] });
       };
+
+      this.pushData = [];
 
       return pushOut().
           then(transformIn).
           then(checkIdSchema).
           then(storeListData).
+          then(markSyncCount).
           catch(reportError);
     },
 
     resolve: function(conflict, resolution) {
-      this.listData = { data: [ resolution ] };
+      listData[this.collectionName] = { data: [ resolution ] };
       return Promise.resolve();
     },
 
-    use: function(plugin) {
-      if (plugin.type === 'idschema') {
-        this._idSchemaUsed = plugin;
-      } else {
-        this._remoteTransformerUsed = plugin;
-      }
-    },
-
     list: function() {
-      return Promise.resolve(this.listData);
+      return Promise.resolve(listData[this.collectionName]);
     },
 
-    get: function() {
-      return Promise.resolve({
-        data: this.listData.data[0]
-      });
+    get: function(id) {
+      if (listData[this.collectionName]) {
+        return Promise.resolve({
+          data: listData[this.collectionName].data[0]
+        });
+      }
+      return Promise.reject(new Error(`Record with id=${id} not found.`));
     },
 
-    create: function(payload, options={}) {
-      var obj = {
-        payload: payload
-      };
+    create: function(obj, options = {}) {
       if (options.forceId) {
         if(!this._idSchemaUsed.validate(options.forceId)) {
           return Promise.reject(new Error('Invalid id: ' + options.forceId));
@@ -113,14 +122,14 @@ var Kinto = (function() {
       } else {
         obj.id = this._idSchemaUsed.generate();
       }
-      this.listData.data.push(obj);
+      listData[this.collectionName].data.push(obj);
       return Promise.resolve();
     },
 
     update: function(obj) {
-      for (var i=0; i<this.listData.data.length; i++) {
-        if (this.listData.data[i].id === obj.id) {
-          this.listData.data[i] = obj;
+      for (var i = 0; i < listData[this.collectionName].data.length; i++) {
+        if (listData[this.collectionName].data[i].id === obj.id) {
+          listData[this.collectionName].data[i] = obj;
           return Promise.resolve();
         }
       }
@@ -128,9 +137,9 @@ var Kinto = (function() {
     },
 
     delete: function(id) {
-      for (var i=0; i<this.listData.data.length; i++) {
-        if (this.listData.data[i].id === id) {
-          this.listData.data.splice(i, 1);
+      for (var i = 0; i < listData[this.collectionName].data.length; i++) {
+        if (listData[this.collectionName].data[i].id === id) {
+          listData[this.collectionName].data.splice(i, 1);
           return Promise.resolve();
         }
       }
@@ -141,11 +150,13 @@ var Kinto = (function() {
   var UnreachableKintoCollectionMock = function() {};
   UnreachableKintoCollectionMock.prototype = {
     sync() {
-      return Promise.reject(new Error());
+      return Promise.reject(new Error(`HTTP 0; TypeError: NetworkError when att\
+empting to fetch resource.`));
     },
-    use() {},
     list() {},
-    get() {},
+    get(id) {
+      return Promise.reject(new Error(`Record with id=${id} not found.`));
+    },
     create() {},
     update() {},
     delete() {},
@@ -157,94 +168,74 @@ var Kinto = (function() {
   HttpCodeKintoCollectionMock.prototype = {
     sync() {
       var err = new Error();
-      err.request = {
+      err.response = {
         status: this.status
       };
       return Promise.reject(err);
     },
-    use() {},
     list() {},
-    get() {},
+    get(id) {
+      return Promise.reject(new Error(`Record with id=${id} not found.`));
+    },
     create() {},
     update() {},
     delete() {},
   };
 
-  var Kinto = function(options) {
-    this.options = options;
-    this.collection = function(collectionName) {
-      var specialInstructions = options.headers['X-Client-State'].split(' ');
-      if (specialInstructions.length !== 2) {
-        specialInstructions = false;
-      }
 
-      var specialInstructionsCase = () => {
+  var Kinto = function(kintoOptions) {
+    this.options = kintoOptions;
+    this.collection = function(collectionName, collectionOptions = {}) {
+      var mockProblemCase = () => {
         var httpCode;
-        if (specialInstructions[0] === collectionName) {
-          httpCode = parseInt(specialInstructions[1]);
+        if (mockProblem &&
+            mockProblem.collectionName === collectionName) {
+          httpCode = parseInt(mockProblem.problem);
           if (isNaN(httpCode)) {
-            if (specialInstructions[1] === 'conflicts') {
-              return new KintoCollectionMock(collectionName, [{
+            if (mockProblem.problem === 'conflicts') {
+              collectionOptions.fireConflicts = [{
                 local: { bar: 'local' },
                 remote: SynctoServerFixture.historyEntryDec.payload
-              }]);
+              }];
+              return new KintoCollectionMock(collectionName, collectionOptions);
             }
-            return new KintoCollectionMock(specialInstructions[1]);
+            return new KintoCollectionMock(mockProblem.problem,
+                                           collectionOptions);
           }
           return new HttpCodeKintoCollectionMock(httpCode);
         }
       };
 
       var unauthCase = () => {
-        if (specialInstructions) {
-          // options.headers['X-Client-State'] will be wrong, but just because
-          // we hijacked it for passing special instructions to the mock, so
-          // don't interpret this as invalid credentials.
-          return;
-        }
-        if ((options.headers.Authorization !==
-                      'BrowserID test-assertion-mock') ||
-                 (options.headers['X-Client-State'] !==
-                      'test-xClientState-mock')) {
+        if (kintoOptions.headers.Authorization !==
+            'BrowserID test-assertion-mock') {
           return new HttpCodeKintoCollectionMock(401);
         }
       };
 
       var unreachableCase = () => {
-        if (options.remote !== 'http://localhost:8000/v1/') {
+        if (kintoOptions.remote !== 'http://localhost:8000/v1/') {
           return new UnreachableKintoCollectionMock(collectionName);
         }
       };
 
       var defaultCase = () => {
-        return new KintoCollectionMock(collectionName);
+        return new KintoCollectionMock(collectionName, collectionOptions);
       };
 
-      return specialInstructionsCase() ||
+      return mockProblemCase() ||
         unauthCase() ||
         unreachableCase() ||
         defaultCase();
     };
   };
 
-  Kinto.createRemoteTransformer = (obj) => {
-    var transformerClass = obj.constructor;
-    transformerClass.prototype = {
-      type: 'remotetransformer',
-      encode: obj.encode,
-      decode: obj.decode
-    };
-    return transformerClass;
-  };
+  Kinto.syncCount = {};
 
-  Kinto.createIdSchema = (obj) => {
-    var schemaClass = obj.constructor;
-    schemaClass.prototype = {
-      type: 'idschema',
-      generate: obj.generate,
-      validate: obj.validate
-    };
-    return schemaClass;
+  Kinto.setMockProblem = (problem) => {
+    mockProblem = problem;
+    Kinto.syncCount = {};
+    listData = {};
   };
 
   return Kinto;

@@ -1,14 +1,15 @@
 <element name="usbStorage" extends="section">
   <template>
 
-    <gaia-header action="back" data-href="#root">
+    <gaia-header ignore-dir action="back" data-href="#root">
       <h1 data-l10n-id="enableUSBStorage1"></h1>
     </gaia-header>
 
     <ul>
       <li>
-        <gaia-switch class="usb-enabled" data-ignore>
+        <gaia-switch class="ums-switch" data-ignore>
           <label data-l10n-id="enableUSBStorage1"></label>
+          <details class="ums-switch-desc"></details>
         </gaia-switch>
       </li>
       <header>

@@ -106,6 +106,7 @@ exports.Navigation = {
       var app = evt.target.result;
       app.connect('ftucomms').then(function onConnAccepted(ports) {
         self.ports = ports;
+        ports.forEach(port => port.postMessage('started'));
       }, function onConnRejected(reason) {
         console.warn('FTU navigation cannot use IAC: ' + reason);
       });
@@ -391,8 +392,8 @@ exports.Navigation = {
   skipStep: function n_skipStep() {
     this.currentStepIndex = this.currentStepIndex +
                       (this.currentStepIndex - this.previousStepIndex);
-    if (this.currentStepIndex < 1) {
-      this.previousStepIndex = this.currentStepIndex = 1;
+    if (this.currentStepIndex <= 0) {
+      this.previousStepIndex = this.currentStepIndex = 0;
     }
     if (this.currentStepIndex > this.stepCount) {
       this.previousStepIndex = this.currentStepIndex = this.stepCount;

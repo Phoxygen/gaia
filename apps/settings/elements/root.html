@@ -1,7 +1,7 @@
 <element name="root" extends="section">
   <template>
 
-    <gaia-header id="main-header">
+    <gaia-header ignore-dir id="main-header">
       <h1 id="main-list-title" data-l10n-id="settings"></h1>
       <a id="activityDoneButton" role="menuitem" data-l10n-id="done"></a>
     </gaia-header>
@@ -119,7 +119,7 @@
         <li id="addons-section" hidden>
           <a id="menuItem-addons" class="menu-item" data-icon="addons" href="#addons" data-l10n-id="addons"></a>
         </li>
-        <li>
+        <li hidden>
           <a id="achievements-section" class="menu-item" data-icon="achievement" href="#achievements" data-l10n-id="achievements"></a>
         </li>
       </ul>
@@ -140,6 +140,14 @@
             <small id="findmydevice-desc" class="findmydevice-desc menu-item-desc"></small>
           </a>
         </li>
+        <!--IFDEF_FIREFOX_SYNC
+        <li>
+          <a id="menuItem-fxsync" class="menu-item" data-icon="download" href="#fxsync" data-l10n-id="fxsyncSection" aria-describedby="fxsync-desc">
+            <span data-l10n-id="fxsync"></span>
+            <small id="fxsync-desc" class="fxsync-desc menu-item-desc"></small>
+          </a>
+        </li>
+        ENDIF_FIREFOX_SYNC-->
       </ul>
 
       <header>
@@ -170,12 +178,6 @@
         <li>
           <small id="browsingPrivacy-desc" class="menu-item-desc" aria-hidden="true"></small>
           <a id="menuItem-browsingPrivacy" class="menu-item" data-icon="browsing" href="#browsingPrivacy" data-l10n-id="browsingPrivacy" aria-describiedby="browsingPrivacy-desc"></a>
-        </li>
-        <li class="privacy-panel-item" hidden>
-          <a id="menuItem-privacyPanel" class="menu-item" data-icon="developer" href="#privacyPanel" data-l10n-id="privacySection" aria-describedby="privacyPanel-desc">
-            <span data-l10n-id="privacy-controls"></span>
-            <small id="privacyPanel-desc" class="menu-item-desc"></small>
-          </a>
         </li>
       </ul>
 

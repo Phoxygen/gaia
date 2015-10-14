@@ -73,6 +73,7 @@ System.Selector = Object.freeze({
   rightPanel: '#right-panel',
   siteIcon: '.appWindow.active .chrome .site-icon',
   utilityTray: '#utility-tray',
+  utilityTrayMotion: '#utility-tray-motion',
   visibleForm: '#action-menu > form.visible',
   cancelActivity: '#action-menu form.visible button[data-action="cancel"]',
   nfcIcon: '.statusbar-nfc',
@@ -208,13 +209,8 @@ System.prototype = {
   },
 
   get appChromeProgressBar() {
-    var progressBar;
-    var client = this.client;
-    this.client.waitFor(function() {
-      progressBar = client.findElement(System.Selector.appChromeProgressBar);
-      return progressBar;
-    });
-    return progressBar;
+    return this.client.helper.waitForElement(
+      System.Selector.appChromeProgressBar);
   },
 
   get currentWindow() {
@@ -300,6 +296,10 @@ System.prototype = {
 
   get utilityTray() {
     return this.client.findElement(System.Selector.utilityTray);
+  },
+
+  get utilityTrayMotion() {
+    return this.client.findElement(System.Selector.utilityTrayMotion);
   },
 
   get topPanel() {
@@ -517,6 +517,11 @@ System.prototype = {
           'matrix(1, 0, 0, 1, 0, 0)';
       });
     });
+  },
+
+  waitForBrowser: function waitForBrowser(url) {
+    return this.client.helper.waitForElement(
+      'div[transition-state="opened"] iframe[src="' + url + '"]');
   },
 
   // It looks for an activity menu, and returns the first

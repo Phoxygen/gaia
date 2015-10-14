@@ -39,6 +39,11 @@ var InboxView = {
   // Set to |true| when in edit mode
   inEditMode: false,
 
+  /**
+   * Indicates whether user should be notified about newly saved draft.
+   */
+  notifyAboutSavedDraft: false,
+
   init: function inbox_init() {
     this.tmpl = {
       thread: Template('messages-thread-tmpl')
@@ -143,10 +148,13 @@ var InboxView = {
 
   beforeEnter: function inbox_beforeEnter(args = {}) {
     this.editHeader.removeAttribute('no-font-fit');
-    // If user left Conversation or New Message views saving a draft, let's
-    // unobtrusively notify him that draft is successfully saved.
-    if (args.notifyAboutSavedDraft) {
+    // In case user saved draft when Inbox was not the active view, we want to
+    // notify that save operation successfully completed once user returns back
+    // to Inbox view.
+    if (this.notifyAboutSavedDraft) {
       this.showDraftSavedBanner();
+
+      this.notifyAboutSavedDraft = false;
     }
   },
 
@@ -412,8 +420,8 @@ var InboxView = {
     this.cancelEdit();
   },
 
-  removeThread: function inbox_removeThread(threadId) {
-    var li = document.getElementById('thread-' + threadId);
+  removeConversationDOM(conversationId) {
+    var li = document.getElementById('thread-' + conversationId);
     var parent;
     var photoUrl = li && li.dataset.photoUrl;
 
@@ -442,9 +450,9 @@ var InboxView = {
     }
   },
 
-  // Since removeThread will revoke list photoUrl at the end of deletion,
-  // please make sure url will also be revoked if new delete api remove threads
-  // without calling removeThread in the future.
+  // Since removeConversationDOM will revoke list photoUrl at the end of
+  // deletion, please make sure url will also be revoked if new delete api
+  // remove threads without calling removeConversationDOM in the future.
   delete: function inbox_delete(selected) {
     function performDeletion() {
     /* jshint validthis: true */
@@ -769,7 +777,7 @@ var InboxView = {
     Threads.delete(threadId);
 
     // Cleanup the DOM
-    this.removeThread(threadId);
+    this.removeConversationDOM(threadId);
 
     // Remove notification if exist
     Utils.closeNotificationsForThread(threadId);
@@ -818,7 +826,7 @@ var InboxView = {
     // General case: update the thread UI.
     if (threadUINode) {
       // remove the current thread node in order to place the new one properly
-      this.removeThread(thread.id);
+      this.removeConversationDOM(thread.id);
     }
 
     this.setEmpty(false);
@@ -974,7 +982,7 @@ var InboxView = {
     }
 
     if (thread.isDraft) {
-      this.removeThread(thread.id);
+      this.deleteThread(thread.id);
     } else {
       this.updateThread(thread);
     }
@@ -983,6 +991,13 @@ var InboxView = {
   onDraftSaved: function inbox_onDraftSaved(draft) {
     var threadToUpdate = draft.threadId ? Threads.get(draft.threadId) : draft;
     this.updateThread(threadToUpdate);
+
+    // In case user saved draft when Inbox was not the active view, we want to
+    // notify that save operation successfully completed once user returns back
+    // to Inbox view.
+    if (!Navigation.isCurrentPanel('thread-list')) {
+      this.notifyAboutSavedDraft = true;
+    }
   },
 
   showDraftSavedBanner: function() {
@@ -991,9 +1006,10 @@ var InboxView = {
     clearTimeout(this.timeouts.onDraftSaved);
     this.timeouts.onDraftSaved = null;
 
-    this.timeouts.onDraftSaved = setTimeout(function hideDraftSavedBanner() {
-      this.draftSavedBanner.classList.add('hide');
-    }.bind(this), this.DRAFT_SAVED_DURATION);
+    this.timeouts.onDraftSaved = setTimeout(
+      () => this.draftSavedBanner.classList.add('hide'),
+      this.DRAFT_SAVED_DURATION
+    );
   }
 };
 

@@ -1,7 +1,15 @@
 'use strict';
-/* global asyncStorage */
+/* global asyncStorage, MozActivity, SettingsListener */
 
 (function(exports) {
+
+  SettingsListener.observe('browser.private.default', false, function (value) {
+    if (value) {
+      exports.newtab.pretendToBePrivate();
+    } else {
+      exports.newtab.stopPretendingToBePrivate();
+    }
+  });
 
   /**
    * The main Newtab page object.
@@ -27,22 +35,8 @@
     };
 
     if (window.location.search.includes('private=1')) {
+      this.isManuallyPrivate = true;
       this.pretendToBePrivate();
-
-      // Show the private dialog if needed.
-      asyncStorage.getItem('shouldSuppressPrivateDialog', value => {
-        if (value) {
-          return;
-        }
-
-        this.privateBrowserDialog = document.getElementById(
-          'private-window-dialog');
-        this.privateBrowserDialog.removeAttribute('hidden');
-
-        this.privateBrowserDialogClose = document.getElementById(
-          'private-window-hide-dialog');
-        this.privateBrowserDialogClose.addEventListener('click', this);
-      });
     }
   }
 
@@ -92,6 +86,44 @@
       themeColor.setAttribute('content', '#392E54');
       document.head.appendChild(themeColor);
       document.body.classList.add('private');
+
+      // Show the private dialog if needed.
+      asyncStorage.getItem('shouldSuppressPrivateDialog', value => {
+        if (value) {
+          return;
+        }
+
+        this.privateBrowserDialog = document.getElementById(
+          'private-window-dialog');
+        this.privateBrowserDialog.removeAttribute('hidden');
+
+        this.privateBrowserDialogClose = document.getElementById(
+          'private-window-hide-dialog');
+        this.privateBrowserDialogClose.addEventListener('click', this);
+
+        this.privateBrowserLearnMore = document.getElementById(
+          'private-learn-more');
+        this.privateBrowserLearnMore.addEventListener('click', this);
+      });
+    },
+
+    /**
+     * Stops pretending to be a private window.
+     * Removes the theme-color meta tag and private class from body
+     */
+    stopPretendingToBePrivate: function () {
+      var themeColor = document.querySelector('meta[name="theme-color"]');
+      if (themeColor) {
+        document.head.removeChild(themeColor);
+      }
+
+      if (!this.isManuallyPrivate) {
+        document.body.classList.remove('private');
+
+        if (this.privateBrowserDialog) {
+          this.privateBrowserDialog.setAttribute('hidden', true);
+        }
+      }
     },
 
     /**
@@ -101,6 +133,9 @@
       switch(e.target) {
         case this.privateBrowserDialogClose:
           this.hidePrivateBrowserDialog();
+          break;
+        case this.privateBrowserLearnMore:
+          this.learnAboutPrivateBrowsing(e);
           break;
       }
     },
@@ -117,6 +152,21 @@
       if (checkbox.checked) {
         asyncStorage.setItem('shouldSuppressPrivateDialog', true);
       }
+    },
+
+    /**
+     * Opens the learn more dialog.
+     */
+    learnAboutPrivateBrowsing: function(e) {
+      e.preventDefault();
+      /* jshint nonew: false */
+      new MozActivity({
+        name: 'view',
+        data: {
+          type: 'url',
+          url: e.target.href
+        }
+      });
     }
   };
 

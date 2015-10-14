@@ -344,6 +344,32 @@ suite('system/AppTextSelectionDialog', function() {
            td.handleEvent(fakeTextSelectInAppEvent);
            assert.isTrue(stubHide.calledOnce);
          });
+
+    test('should show bubble when selection is collapsed after pressing and ' +
+         'release caret', function() {
+           td._transitionState = 'opened';
+           testDetail.collapsed = true;
+           testDetail.reason = 'presscaret';
+           td.handleEvent(fakeTextSelectInAppEvent);
+           testDetail.reason = 'releasecaret';
+           td.handleEvent(fakeTextSelectInAppEvent);
+
+           assert.isTrue(stubHide.calledOnce);
+           assert.isTrue(stubShow.calledWith(testDetail));
+           assert.isTrue(stubHide.calledBefore(stubShow));
+         });
+
+    test('should hide bubble when selection is collapsed after pressing and ' +
+         'release caret', function() {
+           td._transitionState = 'closed';
+           testDetail.collapsed = true;
+           testDetail.reason = 'presscaret';
+           td.handleEvent(fakeTextSelectInAppEvent);
+           testDetail.reason = 'releasecaret';
+           td.handleEvent(fakeTextSelectInAppEvent);
+
+           assert.isTrue(stubHide.calledTwice);
+         });
   });
 
   suite('_elementEventHandler', function() {
@@ -556,6 +582,9 @@ suite('system/AppTextSelectionDialog', function() {
             isMaximized: function() {
               return true;
             },
+            scrollable: {
+              scrollTop: 25
+            },
             height: 40
           }
         };
@@ -571,7 +600,8 @@ suite('system/AppTextSelectionDialog', function() {
           td.calculateDialogPostion(0, 0);
         assert.deepEqual(result, {
           top: positionDetail.rect.bottom * positionDetail.zoomFactor +
-            td.DISTANCE_FROM_SELECTEDAREA_TO_MENUTOP + td.app.appChrome.height,
+            td.DISTANCE_FROM_SELECTEDAREA_TO_MENUTOP + td.app.appChrome.height -
+            td.app.appChrome.scrollable.scrollTop,
           left: ((positionDetail.rect.left + positionDetail.rect.right) *
             positionDetail.zoomFactor -
             td.numOfSelectOptions * td.TEXTDIALOG_WIDTH)/ 2

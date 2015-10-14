@@ -14,6 +14,7 @@ class TestCostControlDataAlertMobile(GaiaTestCase):
 
     def setUp(self):
         GaiaTestCase.setUp(self)
+        self.data_layer.set_bool_pref('privacy.trackingprotection.enabled', False)
         self.data_layer.disable_wifi()
         self.data_layer.connect_to_cell_data()
 
@@ -48,7 +49,6 @@ class TestCostControlDataAlertMobile(GaiaTestCase):
         system.wait_for_notification_toaster_displayed(timeout=180)
         system.wait_for_notification_toaster_not_displayed()
         utility_tray = system.open_utility_tray()
-        utility_tray.wait_for_notification_container_displayed()
 
         cost_control_widget = utility_tray.cost_control_widget
         cost_control_widget.wait_for_limit_to_be_reached()
@@ -58,4 +58,5 @@ class TestCostControlDataAlertMobile(GaiaTestCase):
     def tearDown(self):
         self.marionette.switch_to_frame()
         self.data_layer.disable_cell_data()
+        self.data_layer.clear_user_pref('privacy.trackingprotection.enabled')
         GaiaTestCase.tearDown(self)

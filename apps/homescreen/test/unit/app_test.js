@@ -1,15 +1,16 @@
 /* jshint nonew: false */
-/* global MockNavigatormozApps, MockMozActivity, mockLocalStorage, HomeMetadata,
-          Datastore, App */
+/* global MockNavigatormozApps, MockMozActivity, MockIconsHelper, IconsHelper,
+          HomeMetadata, Datastore, Settings, App */
 'use strict';
 
 require('/shared/test/unit/load_body_html_helper.js');
 require('/shared/test/unit/mocks/mock_navigator_moz_apps.js');
 require('/shared/test/unit/mocks/mock_moz_activity.js');
-require('mocks/mock_localStorage.js');
+require('/shared/test/unit/mocks/mock_icons_helper.js');
 require('mocks/mock_metadata.js');
 require('mocks/mock_datastore.js');
 require('mocks/mock_pages.js');
+require('mocks/mock_settings.js');
 require('/shared/js/l10n.js');
 require('/js/app.js');
 
@@ -18,21 +19,27 @@ suite('Homescreen app', () => {
   var realNavigatorMozApps;
   var realMozActivity;
   var realLocalStorage;
+  var realIconsHelper;
   var app;
 
   var realCreateElement;
   var createElementStub;
   var gaiaAppIconEl;
 
-  const SETTINGS = '{"version":0,"small":false}';
+  realCreateElement = document.createElement.bind(document);
 
   var getIcon = manifestURL => {
-    var container = document.createElement('div');
+    var iconChild = document.createElement('div');
+    iconChild.style.height = '100px';
+    iconChild.style.width = '100px';
     var icon = document.createElement('div');
-    icon.style.height = '100px';
-    icon.style.width = '100px';
+    icon.style.display = 'block';
     icon.app = { manifestURL: manifestURL };
     icon.entryPoint = '';
+    icon.bookmark = null;
+    icon.icon = null;
+    icon.appendChild(iconChild);
+    var container = document.createElement('div');
     container.appendChild(icon);
     return container;
   };
@@ -41,11 +48,14 @@ suite('Homescreen app', () => {
     realCreateElement = document.createElement.bind(document);
     createElementStub = sinon.stub(document, 'createElement');
     createElementStub.withArgs('div').returns(realCreateElement('div'));
+    var iconChild = realCreateElement('div');
     gaiaAppIconEl = realCreateElement('div');
-    gaiaAppIconEl.entryPoint = null;
     gaiaAppIconEl.app = null;
+    gaiaAppIconEl.entryPoint = null;
     gaiaAppIconEl.bookmark = null;
+    gaiaAppIconEl.icon = null;
     gaiaAppIconEl.refresh = () => {};
+    gaiaAppIconEl.appendChild(iconChild);
     createElementStub.withArgs('gaia-app-icon').returns(gaiaAppIconEl);
   };
 
@@ -60,17 +70,10 @@ suite('Homescreen app', () => {
     navigator.mozApps = MockNavigatormozApps;
     realMozActivity = window.MozActivity;
     window.MozActivity = MockMozActivity;
+    realIconsHelper = window.IconsHelper;
+    window.IconsHelper = MockIconsHelper;
 
     MockMozActivity.mSetup();
-    mockLocalStorage.mSetup();
-
-    // Seed the local-storage to bypass first-run behaviour
-    mockLocalStorage.setItem('settings', SETTINGS);
-
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      get: () => mockLocalStorage
-    });
 
     loadBodyHTML('_index.html');
     document.head.innerHTML = `<meta name="theme-color" content="transparent">`;
@@ -79,6 +82,8 @@ suite('Homescreen app', () => {
         this.style.display = 'none';
       };
     }
+    var icons = document.getElementById('apps');
+    icons.freeze = icons.thaw = () => {};
     app = new App();
   });
 
@@ -86,6 +91,7 @@ suite('Homescreen app', () => {
     sandbox.restore();
     navigator.mozApps = realNavigatorMozApps;
     window.MozActivity = realMozActivity;
+    window.IconsHelper = realIconsHelper;
 
     MockNavigatormozApps.mTeardown();
     MockMozActivity.mTeardown();
@@ -115,9 +121,21 @@ suite('Homescreen app', () => {
       stub.restore();
     });
 
+    test('should call freeze and thaw on icon container', done => {
+      stub = sinon.stub(app.icons, 'freeze', () => {
+        stub.restore();
+        stub = sinon.stub(app.icons, 'thaw', () => {
+          stub.restore();
+          done();
+        });
+      });
+      new App();
+    });
+
     test('should initialise the metadata store', done => {
       stub = sinon.stub(HomeMetadata.prototype, 'init', () => {
         done();
+        return Promise.resolve();
       });
       new App();
     });
@@ -125,6 +143,7 @@ suite('Homescreen app', () => {
     test('should initialise the bookmark stores', done => {
       stub = sinon.stub(Datastore.prototype, 'init', () => {
         done();
+        return Promise.resolve();
       });
       new App();
     });
@@ -132,6 +151,7 @@ suite('Homescreen app', () => {
     test('should get the list of installed apps', done => {
       stub = sinon.stub(MockNavigatormozApps.mgmt, 'getAll', () => {
         done();
+        return Promise.resolve();
       });
       new App();
     });
@@ -139,6 +159,7 @@ suite('Homescreen app', () => {
     test('should get the list of bookmarked pages', done => {
       stub = sinon.stub(Datastore.prototype, 'getAll', () => {
         done();
+        return Promise.resolve();
       });
       new App();
     });
@@ -147,30 +168,50 @@ suite('Homescreen app', () => {
       stub = sinon.stub(HomeMetadata.prototype, 'remove', id => {
         assert.equal(id, 'def/');
         metadataGetAllStub.restore();
-        datastoreGetAllStub.restore();
         done();
+        return Promise.resolve();
       });
       var metadataGetAllStub = sinon.stub(HomeMetadata.prototype, 'getAll',
-        () => {
-          return Promise.resolve([
+        callback => {
+          var results = [
             { id: 'abc/', icon: 'abc', order: 0 },
             { id: 'def/', icon: 'def', order: 1 }
-          ]);
-        });
-      var datastoreGetAllStub = sinon.stub(Datastore.prototype, 'getAll',
-        () => {
-          return Promise.resolve([
-            { id: 'abc/', data: {} },
-            { id: 'def/', data: {} }
-          ]);
+          ];
+          for (var result of results) {
+            callback(result);
+          }
+          return Promise.resolve(results);
         });
       MockNavigatormozApps.mApps = [{
-        id: 0,
         manifest: {},
         manifestURL: 'abc',
         order: 0,
         addEventListener: () => {}
       }];
+
+      app = new App();
+    });
+
+    test('should add pending apps that were missed during startup', done => {
+      var metadataGetAllStub = sinon.stub(HomeMetadata.prototype, 'getAll',
+        callback => {
+          var results = [
+            { id: 'abc/', icon: 'abc', order: 0 },
+          ];
+          for (var result of results) {
+            callback(result);
+          }
+
+          stub = sinon.stub(app, 'addAppIcon', icon => {
+            metadataGetAllStub.restore();
+            done(() => {
+              assert.equal(icon, results[0]);
+            });
+          });
+          app.pendingIcons[results[0].id] = [results[0]];
+
+          return Promise.resolve(results);
+        });
 
       app = new App();
     });
@@ -187,16 +228,17 @@ suite('Homescreen app', () => {
           return Promise.resolve({ order: [], small: false });
         };
 
-        mockLocalStorage.setItem('settings', undefined);
+        Settings.firstRun = true;
       });
 
       teardown(() => {
-        mockLocalStorage.setItem('settings', SETTINGS);
+        delete Settings.firstRun;
       });
 
       test('should initialise the bookmark stores', done => {
         stub = sinon.stub(Datastore.prototype, 'init', () => {
           done();
+          return Promise.resolve();
         });
         new App();
       });
@@ -204,6 +246,7 @@ suite('Homescreen app', () => {
       test('should get the list of installed apps', done => {
         stub = sinon.stub(MockNavigatormozApps.mgmt, 'getAll', () => {
           done();
+          return Promise.resolve();
         });
         new App();
       });
@@ -211,32 +254,35 @@ suite('Homescreen app', () => {
       test('should get the list of bookmarked pages', done => {
         stub = sinon.stub(Datastore.prototype, 'getAll', () => {
           done();
+          return Promise.resolve();
         });
         new App();
       });
     });
   });
 
-  suite('App#saveSettings()', () => {
-    test('should restore data', () => {
-      app.small = true;
-      app.saveSettings();
-      app.small = false;
-      app.restoreSettings();
-
-      assert.equal(app.small, true);
+  suite('App#iconSize', () => {
+    test('should be 0 by default', () => {
+      assert.equal(app.iconSize, 0);
     });
 
-    test('should not restore data if version number differs', () => {
-      app.small = true;
-      app.saveSettings();
-      var tmp = JSON.parse(mockLocalStorage.mRawContent.settings);
-      tmp.version = 'UnknownVersionNumber';
-      mockLocalStorage.mRawContent.settings = JSON.stringify(tmp.settings);
-      app.small = false;
-      app.restoreSettings();
+    test('should be updated at each call when it equals 0', () => {
+      assert.equal(app.iconSize, 0);
+      app.icons.appendChild(getIcon('abc'));
+      assert.equal(app.iconSize, 100);
+    });
 
-      assert.equal(app.small, false);
+    test('should be the size of the first icon', () => {
+      app.icons.appendChild(getIcon('abc'));
+      assert.equal(app.iconSize, 100);
+    });
+
+    test('should be the size of the first visible icon', () => {
+      app.icons.appendChild(getIcon('abc'));
+      app.icons.appendChild(getIcon('def'));
+      app.icons.firstChild.firstChild.style.display = 'none';
+      app.icons.firstChild.firstChild.firstChild.style.width = '200px';
+      assert.equal(app.iconSize, 100);
     });
   });
 
@@ -254,9 +300,6 @@ suite('Homescreen app', () => {
     test('should only accept valid apps', () => {
       app.addApp({});
       assert.isFalse(addAppIconStub.called, 'Empty app objects');
-
-      app.addApp({ origin: 'app://privacy-panel.gaiamobile.org' });
-      assert.isFalse(addAppIconStub.called, 'Blacklisted app');
 
       app.addApp({ manifest: {} });
       assert.isTrue(addAppIconStub.calledOnce);
@@ -280,21 +323,25 @@ suite('Homescreen app', () => {
   });
 
   suite('App#addIconContainer()', () => {
-    var refreshGridSizeStub, snapScrollPositionStub;
+    var refreshGridSizeStub, iconAddedSpy;
     setup(() => {
       refreshGridSizeStub = sinon.stub(app, 'refreshGridSize');
-      snapScrollPositionStub = sinon.stub(app, 'snapScrollPosition');
+      iconAddedSpy = sinon.spy(app, 'iconAdded');
     });
 
     teardown(() => {
       refreshGridSizeStub.restore();
-      snapScrollPositionStub.restore();
+      iconAddedSpy.restore();
     });
 
     suite('element properties', () => {
-      var appendChildStub;
+      var appendChildStub, childIsVisible;
       setup(() => {
+        childIsVisible = true;
         appendChildStub = sinon.stub(app.icons, 'appendChild', (el, cb) => {
+          if (!childIsVisible) {
+            el.style.display = 'none';
+          }
           cb();
         });
       });
@@ -305,45 +352,44 @@ suite('Homescreen app', () => {
 
       test('should return a HTML element with an order property', () => {
         app.startupMetadata = [{ order: 1 }];
-        var container = app.addIconContainer(0);
+        var container = app.addIconContainer(document.createElement('div'), 0);
 
         assert.isTrue(container instanceof HTMLDivElement);
         assert.isTrue(container instanceof HTMLElement);
         assert.isNumber(container.order);
       });
 
-      test('should call refreshGridSize() and ' +
-           'snapScrollPosition() on first child', () => {
-        app.addIconContainer(-1);
+      test('should call iconAdded() when adding children', () => {
+        app.addIconContainer(document.createElement('div'), -1);
+        app.addIconContainer(document.createElement('div'), -1);
+
+        assert.isTrue(appendChildStub.calledTwice);
+        assert.isTrue(iconAddedSpy.calledTwice);
+      });
+
+      test('should call refreshGridSize() when adding visible children', () => {
+        app.addIconContainer(document.createElement('div'), -1);
 
         assert.isTrue(appendChildStub.called);
         assert.isTrue(refreshGridSizeStub.called);
-        assert.isTrue(snapScrollPositionStub.called);
       });
 
-      test('should call only refreshGridSize() if has children', () => {
-        var realIcons = app.icons;
-        app.icons = {
-          firstChild: {},
-          appendChild: (child, callback) => { callback(); }
-        };
-
-        app.addIconContainer(-1);
-        assert.isTrue(refreshGridSizeStub.called);
-        assert.isFalse(snapScrollPositionStub.called);
-
-        app.icons = realIcons;
+      test('should not call refreshGridSize() when adding ' +
+           'invisible children', () => {
+        childIsVisible = false;
+        app.addIconContainer(document.createElement('div'), -1);
+        assert.isFalse(refreshGridSizeStub.called);
       });
     });
 
     test('should insert a container in the right order', () => {
       app.startupMetadata = [{ order: 1 }, { order: 2 }, { order: 3 }];
-      app.addIconContainer(0);
-      app.addIconContainer(2);
+      app.addIconContainer(document.createElement('div'), 0);
+      app.addIconContainer(document.createElement('div'), 2);
 
       assert.equal(app.icons.children.length, 2);
 
-      app.addIconContainer(1);
+      app.addIconContainer(document.createElement('div'), 1);
 
       assert.equal(app.icons.children.length, 3);
       assert.equal(app.icons.children[0].order, 1);
@@ -382,9 +428,16 @@ suite('Homescreen app', () => {
     });
 
     test('should be a bookmark', () => {
-      app.addAppIcon({});
+      app.addAppIcon({ id: 'abc', manifestURL: 'def' });
       assert.isNull(gaiaAppIconEl.app);
       assert.isNotNull(gaiaAppIconEl.bookmark);
+    });
+
+    test('should set the best icon according to the size available', () => {
+      var getIconBlobSpy = sinon.spy(IconsHelper, 'setElementIcon');
+      app.addAppIcon({ id: 'abc', addEventListener: () => {} });
+      assert.isTrue(getIconBlobSpy.called);
+      getIconBlobSpy.restore();
     });
   });
 
@@ -489,9 +542,11 @@ suite('Homescreen app', () => {
         scrollTo: () => {}
       };
       scrollToSpy = sinon.spy(app.scrollable, 'scrollTo');
+      app.scrollSnapping = true;
     });
 
     teardown(() => {
+      app.scrollSnapping = false;
       app.scrollable = realScrollable;
     });
 
@@ -541,7 +596,7 @@ suite('Homescreen app', () => {
     });
 
     test('should attach events on click', () => {
-      var dialog = app.settingsDialog;
+      var dialog = app.dialogs[0];
       dialog.open = () => {};
       app.showActionDialog(dialog, null, [() => {}]);
       assert.ok(dialog.querySelector('button').onclick);
@@ -623,37 +678,6 @@ suite('Homescreen app', () => {
   });
 
   suite('App#handleEvent()', () => {
-    var showActionDialogStub;
-
-    suite('contextmenu', () => {
-      setup(function() {
-        showActionDialogStub = sinon.stub(app, 'showActionDialog',
-          (dialog, args, callbacks) => {
-            callbacks[0]();
-          });
-        app.settingsDialog = {
-          open: () => {},
-          close: () => {}
-        };
-      });
-
-      teardown(function() {
-        showActionDialogStub.restore();
-      });
-
-      test('should open a dialog', () => {
-        app.handleEvent(new CustomEvent('contextmenu'));
-        assert.isTrue(showActionDialogStub.called);
-      });
-
-      test('should attach a configure web activity to a button click', () => {
-        app.handleEvent(new CustomEvent('contextmenu'));
-        assert.isTrue(showActionDialogStub.called);
-        assert.equal(MockMozActivity.calls.length, 1);
-        assert.equal(MockMozActivity.calls[0].name, 'configure');
-      });
-    });
-
     suite('scroll', () => {
       test('should show and hide the drop shadow accordingly', () => {
         assert.isFalse(app.scrolled);
@@ -702,6 +726,7 @@ suite('Homescreen app', () => {
         assert.isTrue(showActionDialogStub.called);
         var stubCall = showActionDialogStub.getCall(0);
         assert.equal(stubCall.args[0], app.cancelDownload);
+        showActionDialogStub.restore();
       });
 
       suite('error and paused', () => {
@@ -715,6 +740,10 @@ suite('Homescreen app', () => {
           app.handleEvent(new CustomEvent('activate',
             { detail: { target: icon } }));
         };
+
+        teardown(() => {
+          showActionDialogStub.restore();
+        });
 
         test('error app should open a resume download dialog', () => {
           testApp('error');
@@ -731,14 +760,122 @@ suite('Homescreen app', () => {
         });
       });
 
-      suite('drag-finish', () => {
-        test('auto-scroll timeout should be cancelled', () => {
-          var clearTimeoutStub = sinon.stub(window, 'clearTimeout');
-          app.autoScrollTimeout = 'abc';
-          app.handleEvent(new CustomEvent('drag-finish'));
-          clearTimeoutStub.restore();
+      suite('drag-move', () => {
+        var realInnerHeight, realInnerWidth, setIntervalStub, clearIntervalStub;
 
-          assert.isTrue(clearTimeoutStub.calledWith('abc'));
+        setup(() => {
+          realInnerHeight =
+            Object.getOwnPropertyDescriptor(window, 'innerHeight');
+          Object.defineProperty(window, 'innerHeight', {
+            value: 500,
+            configurable: true
+          });
+
+          realInnerWidth =
+            Object.getOwnPropertyDescriptor(window, 'innerWidth');
+          Object.defineProperty(window, 'innerWidth', {
+            value: 500,
+            configurable: true
+          });
+
+          setIntervalStub = sinon.stub(window, 'setInterval');
+          clearIntervalStub = sinon.stub(window, 'clearInterval');
+
+          app.draggingRemovable = app.draggingEditable = true;
+        });
+
+        teardown(() => {
+          Object.defineProperty(window, 'innerHeight', realInnerHeight);
+          Object.defineProperty(window, 'innerWidth', realInnerWidth);
+          setIntervalStub.restore();
+          clearIntervalStub.restore();
+        });
+
+        test('Hovering at the bottom-left activates the removal icon', () => {
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 0,
+            clientY: 500
+          }}));
+
+          assert.isTrue(app.uninstall.classList.contains('active'));
+          assert.isFalse(app.edit.classList.contains('active'));
+        });
+
+        test('Hovering at the bottom-right activates the edit icon', () => {
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 500,
+            clientY: 500
+          }}));
+
+          assert.isFalse(app.uninstall.classList.contains('active'));
+          assert.isTrue(app.edit.classList.contains('active'));
+        });
+
+        test('Hover directions are mirrored in RTL', () => {
+          Object.defineProperty(document.documentElement, 'dir', {
+            value: 'rtl',
+            configurable: true
+          });
+
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 0,
+            clientY: 500
+          }}));
+
+          assert.isFalse(app.uninstall.classList.contains('active'));
+          assert.isTrue(app.edit.classList.contains('active'));
+
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 500,
+            clientY: 500
+          }}));
+
+          assert.isTrue(app.uninstall.classList.contains('active'));
+          assert.isFalse(app.edit.classList.contains('active'));
+
+          delete document.documentElement.dir;
+        });
+
+        test('Auto-scroll is activated at the top of the screen', () => {
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 0,
+            clientY: 0
+          }}));
+
+          assert.isTrue(setIntervalStub.called);
+        });
+
+        test('Auto-scroll is activated at the bottom of the screen', () => {
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 0,
+            clientY: 500
+          }}));
+
+          assert.isTrue(setIntervalStub.called);
+        });
+
+        test('Auto-scroll is cancelled when not at the top or bottom', () => {
+          app.autoScrollInterval = 'abc';
+          app.icons.getChildFromPoint = () => { return null; };
+
+          app.handleEvent(new CustomEvent('drag-move', { detail: {
+            clientX: 0,
+            clientY: 250
+          }}));
+
+          assert.isTrue(clearIntervalStub.calledWith('abc'));
+          delete app.icons.getChildFromPoint;
+        });
+      });
+
+      suite('drag-finish', () => {
+        test('auto-scroll interval should be cancelled', () => {
+          var clearIntervalStub = sinon.stub(window, 'clearInterval');
+          app.autoScrollInterval = 'abc';
+          app.handleEvent(new CustomEvent('drag-finish'));
+          clearIntervalStub.restore();
+
+          assert.isTrue(clearIntervalStub.calledWith('abc'));
           assert.equal(app.autoScrollTimeout, null);
         });
       });
@@ -797,6 +934,37 @@ suite('Homescreen app', () => {
           { detail: { target: icon } }));
       });
     });
+
+    suite('resize', () => {
+      var synchroniseStub, refreshGridSizeStub, snapScrollPositionStub;
+
+      setup(() => {
+        app.icons.synchronise = () => {};
+        synchroniseStub = sinon.stub(app.icons, 'synchronise');
+        refreshGridSizeStub = sinon.stub(app, 'refreshGridSize');
+        snapScrollPositionStub = sinon.stub(app, 'snapScrollPosition');
+        app.handleEvent(new CustomEvent('resize'));
+      });
+
+      teardown(() => {
+        synchroniseStub.restore();
+        refreshGridSizeStub.restore();
+        snapScrollPositionStub.restore();
+        delete app.icons.synchronise;
+      });
+
+      test('should call icons.synchronise()', () => {
+        assert.isTrue(synchroniseStub.called);
+      });
+
+      test('should call refreshGridSize()', () => {
+        assert.isTrue(refreshGridSizeStub.called);
+      });
+
+      test('should call snapScrollPosition()', () => {
+        assert.isTrue(snapScrollPositionStub.called);
+      });
+    });
   });
 
   suite('install', () => {
@@ -811,13 +979,31 @@ suite('Homescreen app', () => {
   });
 
   suite('hashchange', () => {
+    var realDocumentHidden;
+    setup(() => {
+      realDocumentHidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+      Object.defineProperty(document, 'hidden', {
+        value: false,
+        configurable: true
+      });
+    });
+
+    teardown(() => {
+      if (realDocumentHidden) {
+        Object.defineProperty(document, 'hidden', realDocumentHidden);
+      } else {
+        delete document.hidden;
+      }
+    });
+
     test('should scroll to the top of the page', done => {
       var realScrollable = app.scrollable;
       app.scrollable = {
         scrollTo: (obj) => {
-          assert.equal(obj.top, 0);
-          assert.equal(obj.left, 0);
-          done();
+          done(() => {
+            assert.equal(obj.top, 0);
+            assert.equal(obj.left, 0);
+          });
         },
         scrollLeft: 0,
         parentNode: {

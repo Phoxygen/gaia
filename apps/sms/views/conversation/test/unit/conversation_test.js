@@ -4,7 +4,7 @@
          LinkHelper, Attachment, MockContact, MockOptionMenu,
          MockActivityPicker, Threads, Settings, MockMessages, MockUtils,
          MockContacts, Recipients, MockMozActivity,
-         InboxView, ContactRenderer, UIEvent, Drafts, OptionMenu,
+         InboxView, ContactRenderer, UIEvent, Drafts,
          ActivityPicker, MockNavigatorSettings, MockContactRenderer,
          Draft, MockStickyHeader, MultiSimActionButton, Promise,
          MockLazyLoader, WaitingScreen, Navigation, MockSettings,
@@ -143,15 +143,16 @@ suite('conversation.js >', function() {
     elt.dispatchEvent(event);
   }
 
-  function getMockThread(id, participants) {
+  function getMockThread(id, participants, messages) {
     return new Thread({
       id: id,
-      participants: participants
+      participants: participants,
+      messages: new Map(messages.map((message) => [message.id, message]))
     });
   }
 
-  function setActiveThread(id = 1, participants = ['999']) {
-    ConversationView.activeThread = getMockThread(id, participants);
+  function setActiveThread(id = 1, participants = ['999'], messages = []) {
+    ConversationView.activeThread = getMockThread(id, participants, messages);
     Threads.get.returns(ConversationView.activeThread);
   }
 
@@ -2364,6 +2365,93 @@ suite('conversation.js >', function() {
         assert.isTrue(node.classList.contains('read'));
       }).then(done, done);
     });
+
+    const SECOND = 1000;
+    const MINUTE = 60 * SECOND;
+    const HOUR = 60 * MINUTE;
+    const DAY = 24 * HOUR;
+    const MONTH = 30 * DAY;
+
+    var tests = [
+      {
+        delay: SECOND,
+        name: '1 second'
+      },
+      {
+        delay: 5 * MINUTE - 1,
+        name: 'less than 5 minutes'
+      },
+      {
+        delay: 5 * MINUTE,
+        name: '5 minutes',
+        l10nId: 'late-arrival-notice-in-minutes'
+      },
+      {
+        delay: HOUR - 1,
+        name: 'less than an hour',
+        l10nId: 'late-arrival-notice-in-minutes'
+      },
+      {
+        delay: HOUR,
+        name: 'an hour',
+        l10nId: 'late-arrival-notice-in-hours'
+      },
+      {
+        delay: DAY - 1,
+        name: 'less than a day',
+        l10nId: 'late-arrival-notice-in-hours'
+      },
+      {
+        delay: DAY,
+        name: 'a day',
+        l10nId: 'late-arrival-notice-in-days'
+      },
+      {
+        delay: MONTH - 1,
+        name: 'less than a month',
+        l10nId: 'late-arrival-notice-in-days'
+      },
+      {
+        delay: MONTH,
+        name: 'a month',
+        l10nId: 'late-arrival-notice-in-months'
+      },
+      {
+        delay: MONTH * 5,
+        name: '5 months',
+        l10nId: 'late-arrival-notice-in-months'
+      }
+    ];
+
+    tests.forEach(({ delay, name, l10nId }) => {
+      var testTitle = name + ' delay';
+      testTitle += l10nId ? 
+        (' displays ' + l10nId) : ' does not display late notice';
+      
+      test(testTitle, function(done) {
+        this.sinon.clock.tick(10 * MONTH);
+        var now = Date.now();
+
+        var message = MockMessages.sms({
+          delivery: 'received',
+          timestamp: now,
+          sentTimestamp: now - delay
+        });
+
+        ConversationView.buildMessageDOM(message).then((node) => {
+          var noticeNode = node.querySelector('.late-arrival-notice');
+          var iconNode = node.querySelector('.late-arrival-icon');
+          if (l10nId) {
+            assert.isNotNull(noticeNode);
+            assert.isNotNull(iconNode);
+            assert.equal(noticeNode.dataset.l10nId, l10nId);
+          } else {
+            assert.isNull(noticeNode);
+            assert.isNull(iconNode);
+          }
+        }).then(done, done);
+      });
+    });
   });
 
   suite('renderMessages()', function() {
@@ -2562,27 +2650,27 @@ suite('conversation.js >', function() {
     {
       id: 2,
       threadId: 8,
-      timestamp: +new Date(Date.now() - 150000)
+      timestamp: +new Date(Date.now() - 160000)
     },
     {
       id: 5,
       threadId: 8,
-      timestamp: +new Date(Date.now() - 150000)
+      timestamp: +new Date(Date.now() - 170000)
     },
     {
       id: 6,
       threadId: 8,
-      timestamp: +new Date(Date.now() - 150000)
+      timestamp: +new Date(Date.now() - 180000)
     },
     {
       id: 7,
       threadId: 8,
-      timestamp: +new Date(Date.now() - 150000)
+      timestamp: +new Date(Date.now() - 190000)
     },
     {
       id: 8,
       threadId: 8,
-      timestamp: +new Date(Date.now() - 150000)
+      timestamp: +new Date(Date.now() - 200000)
     }];
 
     var checkIfMessageIsInDOM = function(id) {
@@ -2605,9 +2693,22 @@ suite('conversation.js >', function() {
     setup(function(done) {
       ConversationView.initializeRendering();
       setActiveThread(8);
-      container =
-        ConversationView.getMessageContainer(testMessages[0].timestamp, false);
+
+      container = ConversationView.getMessageContainer(
+        testMessages[0].timestamp, false
+      );
+
+      this.sinon.stub(MessageManager, 'getMessage').throws('Not expected!');
+      testMessages.forEach((testMessage) => {
+        MessageManager.getMessage.withArgs(testMessage.id).returns(
+          Promise.resolve(testMessage)
+        );
+      });
+
+      this.sinon.stub(Threads, 'unregisterMessage');
+
       var promises = testMessages.map((testMessage) => {
+        ConversationView.activeThread.messages.set(testMessage.id, testMessage);
         return ConversationView.appendMessage(testMessage);
       });
       Promise.all(promises).then(() => {
@@ -2637,9 +2738,10 @@ suite('conversation.js >', function() {
       }).then(done, done);
     });
 
-    test('deleting a single message removes it from the DOM', function() {
-      ConversationView.deleteUIMessages(testMessages[0].id);
-      assert.isFalse(checkIfMessageIsInDOM(testMessages[0].id));
+    test('deleting a single message removes it from the DOM', function(done) {
+      ConversationView.deleteMessages([testMessages[0].id]).then(() => {
+        assert.isFalse(checkIfMessageIsInDOM(testMessages[0].id));
+      }).then(done, done);
     });
 
     test('messages marked for deletion get deleted', function(done) {
@@ -2656,17 +2758,16 @@ suite('conversation.js >', function() {
       function(done) {
       ConversationView.startEdit();
       doMarkedMessagesDeletion(1).then(() => {
-        MessageManager.mTriggerOnSuccess();
         assert.isFalse(ConversationView.mainWrapper.classList.contains('edit'));
       }).then(done, done);
     });
 
     test('thread gets updated when a message is deleted', function(done) {
       this.sinon.stub(InboxView, 'updateThread');
-      doMarkedMessagesDeletion(1).then(() => {
-        MessageManager.mTriggerOnSuccess();
+      doMarkedMessagesDeletion(testMessages[0].id).then(() => {
+        // InboxView.updateThread should be called with the "new" last message.
         sinon.assert.calledWith(
-          InboxView.updateThread, undefined, { deleted: true }
+          InboxView.updateThread, testMessages[1], { deleted: true }
         );
       }).then(done, done);
     });
@@ -2682,41 +2783,60 @@ suite('conversation.js >', function() {
       function(done) {
       this.sinon.spy(WaitingScreen, 'hide');
       doMarkedMessagesDeletion(1).then(() => {
-        MessageManager.mTriggerOnSuccess();
         sinon.assert.calledOnce(WaitingScreen.hide);
       }).then(done, done);
     });
 
     suite('deleting all messages', function() {
       setup(function() {
-        this.sinon.stub(ConversationView, 'back');
-        this.sinon.stub(ConversationView, 'close');
+        this.sinon.spy(ConversationView, 'updateDraft');
         this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
+        this.sinon.stub(Navigation, 'toPanel').returns(Promise.resolve());
         Navigation.isCurrentPanel.withArgs('thread').returns(true);
       });
 
       test('when not in an activity, deletes the thread and navigates back',
-      function() {
-        ConversationView.deleteUIMessages(testMessages.map((m) => m.id));
-        sinon.assert.called(ConversationView.back);
-        sinon.assert.notCalled(ConversationView.close);
+      function(done) {
+        // All messages should be removed from the active thread object.
+        ConversationView.activeThread.messages = [];
+
+        ConversationView.deleteMessages(testMessages.map((m) => m.id)).then(
+          () => {
+            testMessages.forEach((message) => {
+              sinon.assert.calledWith(Threads.unregisterMessage, message.id);
+            });
+
+            sinon.assert.calledWith(Navigation.toPanel, 'thread-list');
+          }
+        ).then(done, done);
       });
 
       test('when in an activity, deletes the thread and closes activity',
-      function() {
+      function(done) {
         ActivityClient.hasPendingRequest.returns(true);
+        // All messages should be removed from the active thread object.
+        ConversationView.activeThread.messages = [];
 
-        ConversationView.deleteUIMessages(testMessages.map((m) => m.id));
-        sinon.assert.notCalled(ConversationView.back);
-        sinon.assert.called(ConversationView.close);
+        ConversationView.deleteMessages(testMessages.map((m) => m.id)).then(
+          () => {
+            testMessages.forEach((message) => {
+              sinon.assert.calledWith(Threads.unregisterMessage, message.id);
+            });
+
+            sinon.assert.called(ConversationView.updateDraft);
+            sinon.assert.called(ActivityClient.postResult);
+          }
+        ).then(done, done);
       });
     });
 
-    test('error still calls callback', function() {
-      var callbackStub = this.sinon.stub();
-      ConversationView.deleteUIMessages([], callbackStub);
-      MessageManager.mTriggerOnError();
-      sinon.assert.calledOnce(callbackStub);
+    test('error still resolves deleteMessages', function(done) {
+      MessageManager.getMessage.returns(Promise.reject('error'));
+      ConversationView.deleteMessages([]).then(() => {
+        sinon.assert.notCalled(Threads.unregisterMessage);
+      }, () => {
+        throw new Error('Promise should be resolved successfully!');
+      }).then(done, done);
     });
   });
 
@@ -4344,6 +4464,9 @@ suite('conversation.js >', function() {
 
             this.sinon.spy(ActivityPicker, 'email');
             this.sinon.spy(ConversationView, 'initiateNewMessage');
+            this.sinon.stub(MessageManager, 'findThreadFromNumber').withArgs(
+              'a@b.com'
+            ).returns(Promise.reject());
 
             ConversationView.prompt({
               email: 'a@b.com',
@@ -4554,6 +4677,10 @@ suite('conversation.js >', function() {
 
       suite('multi recipients, in group view >', function() {
         setup(function() {
+          this.sinon.stub(MessageManager, 'findThreadFromNumber').withArgs(
+            '999'
+          ).returns(Promise.reject());
+
           this.sinon.spy(ConversationView, 'initiateNewMessage');
 
           Navigation.isCurrentPanel.withArgs('group-view').returns(true);
@@ -4727,16 +4854,13 @@ suite('conversation.js >', function() {
     suite('initiateNewMessage', function() {
       setup(function() {
         this.sinon.spy(Navigation, 'toPanel');
-        this.sinon.spy(ConversationView, 'discardDraft');
-        this.sinon.stub(Utils, 'confirm');
-        this.sinon.stub(Compose, 'isEmpty').returns(true);
         this.sinon.stub(MessageManager, 'findThreadFromNumber');
         this.sinon.stub(Threads.Messages, 'get');
         this.sinon.spy(Drafts, 'add');
         this.sinon.spy(Drafts, 'store');
       });
 
-      test('immediately navigates to Composer if no unsent message',
+      test('navigates to Composer if no number is specified',
       function(done) {
         Threads.Messages.get.withArgs(1).returns(MockMessages.sms());
         ConversationView.initiateNewMessage({ messageId: 1 }).then(() => {
@@ -4748,7 +4872,6 @@ suite('conversation.js >', function() {
             Drafts.add, { content: ['body'], type: 'sms' }
           );
           sinon.assert.called(Drafts.store);
-          sinon.assert.notCalled(Utils.confirm);
         }).then(done, done);
       });
 
@@ -4774,32 +4897,6 @@ suite('conversation.js >', function() {
               content: [ sinon.match.instanceOf(Attachment), 'body' ],
               type: 'mms'
             }
-          );
-          sinon.assert.called(Drafts.store);
-          sinon.assert.notCalled(Utils.confirm);
-        }).then(done, done);
-      });
-
-      test('navigates to Composer when user discards unsent message',
-      function(done) {
-        Compose.isEmpty.returns(false);
-        Utils.confirm.returns(Promise.resolve());
-        Threads.Messages.get.withArgs(1).returns(MockMessages.sms());
-
-        ConversationView.initiateNewMessage({ messageId: 1 }).then(() => {
-          sinon.assert.calledWith(
-            Utils.confirm,
-            'unsent-message-text',
-            'unsent-message-title',
-            { text: 'unsent-message-option-discard', className: 'danger' }
-          );
-          sinon.assert.called(ConversationView.discardDraft);
-          sinon.assert.calledWith(
-            Navigation.toPanel,
-            'composer', { draftId: 'draftId', focusComposer: sinon.match.falsy }
-          );
-          sinon.assert.calledWithMatch(
-            Drafts.add, { content: ['body'], type: 'sms' }
           );
           sinon.assert.called(Drafts.store);
         }).then(done, done);
@@ -4841,25 +4938,6 @@ suite('conversation.js >', function() {
           () => new Error('Should not be resolved.'),
           () => {}
         ).then(done, done);
-      });
-
-      test('stays in the current panel if user wants to keep unsent message',
-      function(done) {
-        Compose.isEmpty.returns(false);
-        Utils.confirm.returns(Promise.reject());
-
-        ConversationView.initiateNewMessage({ test: 'test' }).then(() => {
-          throw new Error('initiateNewMessage should be rejected!');
-        }, () => {
-          sinon.assert.calledWith(
-            Utils.confirm,
-            'unsent-message-text',
-            'unsent-message-title',
-            { text: 'unsent-message-option-discard', className: 'danger' }
-          );
-          sinon.assert.notCalled(ConversationView.discardDraft);
-          sinon.assert.notCalled(Navigation.toPanel);
-        }).then(done, done);
       });
     });
 
@@ -5052,6 +5130,10 @@ suite('conversation.js >', function() {
 
       Compose.type = 'sms';
 
+      this.sinon.stub(Compose, 'clear', () => {
+        Compose.isEmpty.returns(true);
+      });
+
       this.sinon.stub(MessageManager, 'sendSMS');
       this.sinon.stub(MessageManager, 'sendMMS');
 
@@ -5174,7 +5256,7 @@ suite('conversation.js >', function() {
       });
 
       test('then closes if we\'re in the activity', function() {
-        this.sinon.stub(ConversationView, 'close');
+        this.sinon.stub(ConversationView, 'backOrClose');
         ActivityClient.hasPendingRequest.returns(true);
 
         sendSmsToSeveralRecipients();
@@ -5182,7 +5264,7 @@ suite('conversation.js >', function() {
 
         this.sinon.clock.tick(ConversationView.LEAVE_ACTIVITY_DELAY);
 
-        sinon.assert.called(ConversationView.close);
+        sinon.assert.called(ConversationView.backOrClose);
       });
     });
 
@@ -5568,7 +5650,7 @@ suite('conversation.js >', function() {
       });
 
       test('Compose.refresh is called', function() {
-        // The event is throttled with a delay of 300ms 
+        // The event is throttled with a delay of 300ms
         this.sinon.clock.tick(200);
         sinon.assert.notCalled(Compose.refresh);
 
@@ -5578,114 +5660,268 @@ suite('conversation.js >', function() {
     });
   });
 
-  suite('saveDraft() > ', function() {
-    var addSpy, arg;
-
+  suite('updateDraft() > ', function() {
     setup(function() {
-      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
+      this.sinon.spy(Drafts, 'add');
+      this.sinon.spy(Drafts, 'delete');
+      this.sinon.spy(Drafts, 'store');
 
-      addSpy = this.sinon.spy(Drafts, 'add');
+      this.sinon.stub(Compose, 'isEmpty');
+      this.sinon.stub(Compose, 'getContent');
+      this.sinon.stub(Compose, 'getSubject');
+
+      ConversationView.draft = null;
 
       ConversationView.initRecipients();
+    });
+
+    test('does not save anything if there is nothing to save', function() {
+      Compose.isEmpty.returns(true);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.notCalled(Drafts.add);
+      sinon.assert.notCalled(Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.isNull(ConversationView.draft);
+    });
+
+    test('does not save anything if draft is not edited', function() {
+      var existingDraft = { id: 1, isEdited: false };
+
+      ConversationView.draft = existingDraft;
+      Compose.isEmpty.returns(false);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.notCalled(Drafts.add);
+      sinon.assert.notCalled(Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, existingDraft);
+    });
+
+    test('saves draft if at least content is entered', function() {
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['foo']);
+      Compose.getSubject.returns(null);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: [],
+        content: ['foo'],
+        subject: null,
+        threadId: undefined,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('saves draft if at least recipients are entered', function() {
+      Compose.isEmpty.returns(true);
+      Compose.getContent.returns([]);
+      ConversationView.recipients.add({
+        number: '999'
+      });
+      Compose.getSubject.returns(null);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: ['999'],
+        content: [],
+        subject: null,
+        threadId: undefined,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('saves draft entirely', function() {
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['foo']);
+      Compose.getSubject.returns('subject');
       ConversationView.recipients.add({
         number: '999'
       });
 
-      this.sinon.stub(Compose, 'getContent').returns(['foo']);
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: ['999'],
+        content: ['foo'],
+        subject: 'subject',
+        threadId: undefined,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
     });
 
-    suite('threadless >', function() {
-      setup(function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
+    test('saves participants and thread id for the thread draft', function() {
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['foo']);
+      Compose.getSubject.returns('subject');
+
+      setActiveThread(100, ['888'], [MockMessages.sms()]);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: ['888'],
+        content: ['foo'],
+        subject: 'subject',
+        threadId: 100,
+        type: 'sms'
       });
-
-      test('do not preserve draft for replacement', function() {
-        ConversationView.saveDraft();
-
-        assert.isNull(ConversationView.draft);
-      });
-
-      test('preserve pre-existing draft for replacement', function() {
-        var draft = {id: 55};
-        ConversationView.draft = draft;
-        ConversationView.saveDraft(true /* preserveDraft */);
-
-        assert.isNotNull(ConversationView.draft);
-        assert.equal(ConversationView.draft, draft);
-      });
-
-      test('preserve new draft for replacement', function() {
-        ConversationView.draft = null;
-        ConversationView.saveDraft(true /* preserveDraft */);
-
-        assert.isNotNull(ConversationView.draft);
-        assert.deepEqual(ConversationView.draft.recipients, ['999']);
-        assert.equal(ConversationView.draft.content, 'foo');
-        assert.equal(ConversationView.draft.threadId, null);
-      });
-
-      test('has entered content and recipients', function() {
-        ConversationView.saveDraft();
-        arg = addSpy.firstCall.args[0];
-
-        assert.deepEqual(arg.recipients, ['999']);
-        assert.deepEqual(arg.content, ['foo']);
-      });
-
-      test('has entered recipients but not content', function() {
-        Compose.getContent.returns([]);
-        ConversationView.saveDraft();
-        arg = addSpy.firstCall.args[0];
-
-        assert.deepEqual(arg.recipients, ['999']);
-        assert.deepEqual(arg.content, []);
-      });
-
-      test('has entered content but not recipients', function() {
-        ConversationView.recipients.remove('999');
-        ConversationView.saveDraft();
-        arg = addSpy.firstCall.args[0];
-
-        assert.deepEqual(arg.recipients, []);
-        assert.deepEqual(arg.content, ['foo']);
-      });
-
-      test('correctly saves threadless draft', function() {
-        ConversationView.draft = { id: 1 };
-        ConversationView.saveDraft();
-
-        sinon.assert.calledWith(Drafts.add, sinon.match({ id: 1 }));
-      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
     });
 
-    suite('within an existing thread >', function() {
-       setup(function() {
-        Navigation.isCurrentPanel.withArgs('thread', { id: 1 }).returns(true);
+    test('replaces draft if exists', function() {
+      ConversationView.draft = {
+        id: 1,
+        content: ['foo'],
+        isEdited: true
+      };
 
-        setActiveThread();
-       });
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['bar']);
+      Compose.getSubject.returns(null);
 
-      test('saves draft to existing thread', function() {
-        ConversationView.saveDraft();
+      ConversationView.updateDraft();
 
-        sinon.assert.calledWith(
-          Drafts.add, sinon.match({ threadId: 1, content: ['foo'] })
-        );
-
-        Compose.getContent.returns(['foobaz']);
-        ConversationView.saveDraft();
-
-        sinon.assert.calledWith(
-          Drafts.add, sinon.match({ threadId: 1, content: ['foobaz'] })
-        );
-
-        Compose.getContent.returns(['foobazfoo']);
-        ConversationView.saveDraft();
-
-        sinon.assert.calledWith(
-          Drafts.add, sinon.match({ threadId: 1, content: ['foobazfoo'] })
-        );
+      sinon.assert.calledWith(Drafts.add, {
+        id: 1,
+        recipients: [],
+        content: ['bar'],
+        subject: null,
+        threadId: undefined,
+        type: 'sms'
       });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('replaces thread draft if exists', function() {
+      setActiveThread(100, ['888'], [MockMessages.sms()]);
+
+      ConversationView.draft = {
+        id: 1,
+        threadId: 100,
+        content: ['foo'],
+        recipients: ['888'],
+        isEdited: true
+      };
+
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['bar']);
+      Compose.getSubject.returns(null);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: 1,
+        recipients: ['888'],
+        content: ['bar'],
+        subject: null,
+        threadId: 100,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('replaces existing draft with threadless if conversation is removed',
+    function() {
+      // Don't set any messages to the active thread to make it look like thread
+      // which messages were removed.
+      setActiveThread(100, ['888']);
+
+      var existingThreadDraft = {
+        id: 1,
+        threadId: 100,
+        content: ['foo'],
+        recipients: ['888'],
+        isEdited: false
+      };
+
+      ConversationView.draft = existingThreadDraft;
+
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['bar']);
+      Compose.getSubject.returns(null);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.delete, existingThreadDraft);
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: ['888'],
+        content: ['bar'],
+        subject: null,
+        threadId: null,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.delete, Drafts.add, Drafts.store);
+      sinon.assert.calledOnce(Drafts.store);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('creates new threadless draft if conversation is removed', function() {
+      // Don't set any messages to the active thread to make it look like thread
+      // which messages were removed.
+      setActiveThread(100, ['888']);
+
+      Compose.isEmpty.returns(false);
+      Compose.getContent.returns(['bar']);
+      Compose.getSubject.returns(null);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.calledWith(Drafts.add, {
+        id: null,
+        recipients: ['888'],
+        content: ['bar'],
+        subject: null,
+        threadId: null,
+        type: 'sms'
+      });
+      sinon.assert.callOrder(Drafts.add, Drafts.store);
+      sinon.assert.notCalled(Drafts.delete);
+      assert.equal(ConversationView.draft, Drafts.add.lastCall.args[0]);
+    });
+
+    test('deletes draft if exists, but there is no content', function() {
+      var existingDraft = {
+        id: 1,
+        content: ['foo'],
+        isEdited: true
+      };
+
+      ConversationView.draft = existingDraft;
+
+      Compose.isEmpty.returns(true);
+
+      ConversationView.updateDraft();
+
+      sinon.assert.notCalled(Drafts.add);
+      sinon.assert.calledWith(Drafts.delete, existingDraft);
+      sinon.assert.callOrder(Drafts.delete, Drafts.store);
+      assert.isNull(ConversationView.draft);
     });
   });
 
@@ -5707,7 +5943,7 @@ suite('conversation.js >', function() {
     });
 
     setup(function() {
-      this.sinon.stub(ConversationView, 'saveDraft');
+      this.sinon.stub(ConversationView, 'updateDraft');
       this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
     });
 
@@ -5715,373 +5951,78 @@ suite('conversation.js >', function() {
       isDocumentHidden = false;
     });
 
-    suite('Draft saved: content AND recipients exist', function() {
-      setup(function() {
-        this.sinon.stub(Compose, 'isEmpty').returns(false);
-      });
+    test('updates draft when in NewMessage view', function() {
+      Navigation.isCurrentPanel.withArgs('composer').returns(true);
 
-      test('new: has message', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
-        ConversationView.initRecipients();
+      isDocumentHidden = true;
 
-        isDocumentHidden = true;
+      ConversationView.onVisibilityChange();
 
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.calledOnce(ConversationView.saveDraft);
-        sinon.assert.calledWith(ConversationView.saveDraft, true);
-      });
-
-      test('new: has message, has recipients', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
-        ConversationView.initRecipients();
-
-        ConversationView.recipients.length = 1;
-        isDocumentHidden = true;
-
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.calledOnce(ConversationView.saveDraft);
-        sinon.assert.calledWith(ConversationView.saveDraft, true);
-      });
-
-      test('thread: has message', function() {
-        Navigation.isCurrentPanel.withArgs('thread').returns(true);
-
-        isDocumentHidden = true;
-
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.calledOnce(ConversationView.saveDraft);
-        sinon.assert.calledWith(ConversationView.saveDraft, true);
-      });
+      sinon.assert.calledOnce(ConversationView.updateDraft);
     });
 
-    suite('Draft saved: content OR recipients exist', function() {
-      test('new: has message, no recipients', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
-        this.sinon.stub(Compose, 'isEmpty').returns(false);
-        ConversationView.initRecipients();
+    test('updates draft when in Conversation view', function() {
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
 
-        ConversationView.recipients.length = 0;
-        isDocumentHidden = true;
+      isDocumentHidden = true;
 
-        ConversationView.onVisibilityChange();
+      ConversationView.onVisibilityChange();
 
-        sinon.assert.calledOnce(ConversationView.saveDraft);
-        sinon.assert.calledWith(ConversationView.saveDraft, true);
-      });
-
-      test('new: no message, has recipients', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
-        this.sinon.stub(Compose, 'isEmpty').returns(true);
-        ConversationView.initRecipients();
-
-        ConversationView.recipients.length = 1;
-        isDocumentHidden = true;
-
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.calledOnce(ConversationView.saveDraft);
-        sinon.assert.calledWith(ConversationView.saveDraft, true);
-      });
+      sinon.assert.calledOnce(ConversationView.updateDraft);
     });
 
-    suite('Draft not saved: content or recipients do not exist', function() {
-      setup(function() {
-        this.sinon.stub(Compose, 'isEmpty').returns(true);
-        ConversationView.initRecipients();
-        ConversationView.recipients.length = 0;
-      });
+    test('does not update draft when document is shown', function() {
+      isDocumentHidden = false;
 
-      test('new: no message', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
+      Navigation.isCurrentPanel.withArgs('composer').returns(true);
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
 
-        isDocumentHidden = true;
+      ConversationView.onVisibilityChange();
 
-        ConversationView.onVisibilityChange();
+      sinon.assert.notCalled(ConversationView.updateDraft);
+    });
 
-        sinon.assert.notCalled(ConversationView.saveDraft);
-      });
+    test('does not update draft when in any other view', function() {
+      Navigation.isCurrentPanel.withArgs('thread-list').returns(true);
 
-      test('new: no message, no recipients', function() {
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
+      isDocumentHidden = true;
 
-        ConversationView.recipients.length = 0;
-        isDocumentHidden = true;
+      ConversationView.onVisibilityChange();
 
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.notCalled(ConversationView.saveDraft);
-      });
-
-      test('thread: no message', function() {
-        Navigation.isCurrentPanel.withArgs('thread').returns(true);
-
-        ConversationView.recipients.length = 1;
-        isDocumentHidden = true;
-
-        ConversationView.onVisibilityChange();
-
-        sinon.assert.notCalled(ConversationView.saveDraft);
-      });
+      sinon.assert.notCalled(ConversationView.updateDraft);
     });
   });
 
   suite('Back button behaviour', function() {
-    suite('From new message', function() {
-      var showCalled = false;
-      var optionMenuTargetItemIndex = 0;
+    setup(function() {
+      this.sinon.stub(ConversationView, 'isKeyboardDisplayed').returns(false);
+      this.sinon.stub(ConversationView, 'stopRendering');
+      this.sinon.stub(Navigation, 'toPanel');
+    });
 
-      setup(function() {
-        showCalled = false;
-        this.sinon.stub(window, 'OptionMenu').returns({
-          show: function() {
-            var item = OptionMenu.args[0][0].items[optionMenuTargetItemIndex];
-            item.method.apply(null);
-            showCalled = true;
-          },
-          hide: function() {}
-        });
-
-        this.sinon.stub(Compose, 'getContent');
-        this.sinon.stub(Compose, 'isEmpty');
-
-        this.sinon.stub(ConversationView, 'isKeyboardDisplayed').returns(false);
-        this.sinon.stub(ConversationView, 'stopRendering');
-
-        this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
-        Navigation.isCurrentPanel.withArgs('composer').returns(true);
-
-        ConversationView.initRecipients();
-        ConversationView.recipients.add({
-          number: '999'
-        });
-
-        ConversationView.draft = null;
-      });
-
-      test('Displays OptionMenu prompt if recipients', function(done) {
-        ConversationView.back().then(function() {
-          assert.isTrue(OptionMenu.calledOnce);
-          assert.isTrue(showCalled);
-
-          var items = OptionMenu.args[0][0].items;
-
-          // Assert the correct menu items were displayed
-          assert.equal(items[0].l10nId, 'save-as-draft');
-          assert.equal(items[1].l10nId, 'delete-draft');
-          assert.equal(items[2].l10nId, 'cancel');
-        }).then(done, done);
-      });
-
-      test('Displays OptionMenu prompt if recipients & content',
-      function(done) {
-        Compose.getContent.returns(['foo']);
-        Compose.isEmpty.returns(false);
-
-        ConversationView.back().then(function() {
-          assert.isTrue(OptionMenu.calledOnce);
-          assert.isTrue(showCalled);
-
-          var items = OptionMenu.args[0][0].items;
-
-          // Assert the correct menu items were displayed
-          assert.equal(items[0].l10nId, 'save-as-draft');
-          assert.equal(items[1].l10nId, 'delete-draft');
-          assert.equal(items[2].l10nId, 'cancel');
-        }).then(done, done);
-      });
-
-      test('Displays OptionMenu prompt if content', function(done) {
-        ConversationView.recipients.remove('999');
-        Compose.getContent.returns(['foo']);
-        Compose.isEmpty.returns(false);
-
-        ConversationView.back().then(function() {
-          assert.isTrue(OptionMenu.calledOnce);
-          assert.isTrue(showCalled);
-
-          var items = OptionMenu.args[0][0].items;
-
-          // Assert the correct menu items were displayed
-          assert.equal(items[0].l10nId, 'save-as-draft');
-          assert.equal(items[1].l10nId, 'delete-draft');
-          assert.equal(items[2].l10nId, 'cancel');
-        }).then(done, done);
-      });
-
-      suite('OptionMenu operations', function() {
-        setup(function() {
-          this.sinon.spy(Navigation, 'toPanel');
-          this.sinon.spy(ConversationView, 'saveDraft');
-          this.sinon.spy(Drafts, 'delete');
-          this.sinon.spy(Drafts, 'store');
-        });
-
-        test('Save as Draft', function(done) {
-          optionMenuTargetItemIndex = 0;
-
-          ConversationView.back().then(function() {
-            sinon.assert.calledOnce(ConversationView.saveDraft);
-            sinon.assert.calledWith(Navigation.toPanel, 'thread-list', {
-              notifyAboutSavedDraft: true
-            });
-          }).then(done, done);
-        });
-
-        test('Discard', function(done) {
-          optionMenuTargetItemIndex = 1;
-          ConversationView.draft = new Draft({id: 3});
-          ConversationView.draft.isEdited = true;
-
-          ConversationView.back().then(function() {
-            sinon.assert.calledWith(Navigation.toPanel, 'thread-list');
-            sinon.assert.callOrder(Drafts.delete, Drafts.store);
-            assert.isNull(ConversationView.draft);
-            sinon.assert.calledWith(Navigation.toPanel, 'thread-list', {
-              notifyAboutSavedDraft: undefined
-            });
-          }).then(done, done);
-        });
-
-        test('Cancel', function(done) {
-          optionMenuTargetItemIndex = 2;
-
-          ConversationView.back().then(function() {
-            throw new Error('Success callback should not have been called.');
-          }, function() {
-            sinon.assert.notCalled(ConversationView.saveDraft);
-            sinon.assert.notCalled(Navigation.toPanel);
-          }).then(done, done);
-        });
-      });
-
-      suite('If existing draft', function() {
-
-        suite('If draft edited', function() {
-
-          setup(function() {
-            ConversationView.initRecipients();
-            ConversationView.recipients.add({
-              number: '999'
-            });
-
-            ConversationView.draft = new Draft({
-              id: 55
-            });
-
-            // Can't set this via options.
-            ConversationView.draft.isEdited = true;
-          });
-
-          test('Prompts for replacement if recipients', function(done) {
-            ConversationView.back().then(function() {
-              assert.isTrue(OptionMenu.calledOnce);
-              assert.isTrue(showCalled);
-
-              var items = OptionMenu.args[0][0].items;
-
-              // Assert the correct menu items were displayed
-              assert.equal(items[0].l10nId, 'replace-draft');
-              assert.equal(items[1].l10nId, 'delete-draft');
-              assert.equal(items[2].l10nId, 'cancel');
-            }).then(done, done);
-          });
-
-          test('Prompts for replacement if recipients & content',
-          function(done) {
-            Compose.getContent.returns(['foo']);
-            Compose.isEmpty.returns(false);
-
-            ConversationView.back().then(function() {
-              assert.isTrue(OptionMenu.calledOnce);
-              assert.isTrue(showCalled);
-
-              var items = OptionMenu.args[0][0].items;
-
-              // Assert the correct menu items were displayed
-              assert.equal(items[0].l10nId, 'replace-draft');
-              assert.equal(items[1].l10nId, 'delete-draft');
-              assert.equal(items[2].l10nId, 'cancel');
-            }).then(done, done);
-          });
-
-          test('Prompts for replacement if content', function(done) {
-            ConversationView.recipients.remove('999');
-            Compose.getContent.returns(['foo']);
-            Compose.isEmpty.returns(false);
-
-            ConversationView.back().then(function() {
-              assert.isTrue(OptionMenu.calledOnce);
-              assert.isTrue(showCalled);
-
-              var items = OptionMenu.args[0][0].items;
-
-              // Assert the correct menu items were displayed
-              assert.equal(items[0].l10nId, 'replace-draft');
-              assert.equal(items[1].l10nId, 'delete-draft');
-              assert.equal(items[2].l10nId, 'cancel');
-            }).then(done, done);
-          });
-        });
-
-        suite('If draft not edited', function() {
-
-          setup(function() {
-            ConversationView.draft = {id: 55};
-          });
-
-          test('No prompt for replacement if recipients', function(done) {
-            ConversationView.draft.isEdited = false;
-
-            ConversationView.back().then(function() {
-              assert.isNull(ConversationView.draft);
-              assert.isFalse(OptionMenu.calledOnce);
-              assert.isFalse(showCalled);
-            }).then(done, done);
-          });
-
-          test('No prompt for replacement if recipients & content',
-          function(done) {
-            ConversationView.draft.isEdited = false;
-
-            Compose.getContent.returns(['foo']);
-            Compose.isEmpty.returns(false);
-
-            ConversationView.back().then(function() {
-              assert.isNull(ConversationView.draft);
-              assert.isFalse(OptionMenu.calledOnce);
-              assert.isFalse(showCalled);
-            }).then(done, done);
-          });
-
-          test('No prompt for replacement if content', function(done) {
-            ConversationView.recipients.remove('999');
-            ConversationView.draft.isEdited = false;
-
-            Compose.getContent.returns(['foo']);
-            Compose.isEmpty.returns(false);
-
-            ConversationView.back().then(function() {
-              assert.isNull(ConversationView.draft);
-              assert.isFalse(OptionMenu.calledOnce);
-              assert.isFalse(showCalled);
-            }).then(done, done);
-          });
-        });
-      });
+    test('immediately navigates to Inbox if keyboard is not shown',
+    function(done) {
+      ConversationView.backOrClose().then(function() {
+        sinon.assert.called(ConversationView.stopRendering);
+        sinon.assert.calledWith(Navigation.toPanel, 'thread-list');
+      }).then(done, done);
     });
   });
 
   suite('Close button behaviour', function() {
-    test('Call ActivityClient.postResult', function(done) {
-      this.sinon.stub(ConversationView, 'cleanFields');
-      ConversationView.initRecipients();
+    setup(function() {
+      this.sinon.stub(ConversationView, 'updateDraft').returns(
+        Promise.resolve()
+      );
+      ActivityClient.hasPendingRequest.returns(true);
+    });
 
-      ConversationView.close().then(function() {
-        sinon.assert.called(ConversationView.cleanFields);
+    test('Updates draft and calls ActivityClient.postResult', function(done) {
+      ConversationView.backOrClose().then(function() {
         sinon.assert.calledWithExactly(ActivityClient.postResult);
+        sinon.assert.callOrder(
+          ConversationView.updateDraft, ActivityClient.postResult
+        );
       }).then(done, done);
     });
   });
@@ -6483,20 +6424,17 @@ suite('conversation.js >', function() {
         sinon.assert.notCalled(ConversationView.updateHeaderData);
       }).then(done, done);
     });
-
-    test('discards draft record', function(done) {
-      ConversationView.handleDraft(draft.id).then(() => {
-        sinon.assert.callOrder(Drafts.request, Drafts.delete, Drafts.store);
-      }).then(done, done);
-    });
   });
 
   suite('beforeLeave() ', function() {
-    var transitionArgs = { meta: {} };
+    var transitionArgs;
 
     setup(function() {
-      setActiveThread();
+      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
       this.sinon.spy(ConversationView, 'cleanFields');
+
+      setActiveThread();
+      transitionArgs = { meta: {} };
     });
 
     teardown(function() {
@@ -6504,8 +6442,9 @@ suite('conversation.js >', function() {
     });
 
     test('to inbox, exits edit mode', function() {
-      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
-      Navigation.isCurrentPanel.withArgs('thread-list').returns(true);
+      transitionArgs.meta = { next: { panel: 'thread-list' } };
+
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
 
       ConversationView.startEdit();
       ConversationView.beforeLeave(transitionArgs);
@@ -6515,7 +6454,6 @@ suite('conversation.js >', function() {
 
     test('to thread view, exits edit mode', function() {
       // this can happen when the user clicks a notification
-      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
       Navigation.isCurrentPanel.withArgs('thread').returns(true);
 
       ConversationView.startEdit();
@@ -6526,7 +6464,6 @@ suite('conversation.js >', function() {
 
     test('revokes all attachment thumbnail URLs', function(done) {
       this.sinon.stub(window.URL, 'revokeObjectURL');
-      this.sinon.stub(Navigation, 'isCurrentPanel').returns(false);
       Navigation.isCurrentPanel.withArgs('thread').returns(true);
 
       var attachments = [{
@@ -6581,6 +6518,73 @@ suite('conversation.js >', function() {
 
       assert.isNotNull(ConversationView.activeThread);
       sinon.assert.notCalled(ConversationView.cleanFields);
+    });
+
+    test('resets unreadCount property for the current thread', function() {
+      var activeThread = ConversationView.activeThread;
+
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
+
+      activeThread.unreadCount = 1;
+
+      ConversationView.beforeLeave(transitionArgs);
+
+      assert.equal(activeThread.unreadCount, 0);
+    });
+
+    test('updates/resets draft if moving to another view',
+    function() {
+      var existingDraft = { id: 1 };
+      ConversationView.draft = existingDraft;
+      this.sinon.spy(ConversationView, 'updateDraft');
+
+      this.sinon.stub(Compose, 'isEmpty').returns(false);
+      setActiveThread(1, ['999'], [MockMessages.sms()]);
+
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
+
+      transitionArgs.meta = { next: { panel: 'thread-list' } };
+
+      ConversationView.beforeLeave(transitionArgs);
+
+      sinon.assert.calledOnce(ConversationView.updateDraft);
+      assert.isNull(ConversationView.draft);
+
+      ConversationView.draft = existingDraft;
+      transitionArgs.meta = { next: { panel: 'thread', args: { id: 2 } } };
+      setActiveThread();
+
+      ConversationView.beforeLeave(transitionArgs);
+
+      sinon.assert.calledTwice(ConversationView.updateDraft);
+      assert.isNull(ConversationView.draft);
+    });
+
+    test('does not reset, but updates draft if moving to related view',
+    function() {
+      var existingDraft = { id: 1 };
+      ConversationView.draft = existingDraft;
+      this.sinon.spy(ConversationView, 'updateDraft');
+
+      this.sinon.stub(Compose, 'isEmpty').returns(false);
+      setActiveThread(1, ['999'], [MockMessages.sms()]);
+
+      Navigation.isCurrentPanel.withArgs('thread').returns(true);
+
+      transitionArgs.meta = {
+        next: { panel: 'report-view', args: { threadId: 1 } }
+      };
+
+      ConversationView.beforeLeave(transitionArgs);
+
+      transitionArgs.meta = {
+        next: { panel: 'group-view', args: { id: 1 } }
+      };
+
+      ConversationView.beforeLeave(transitionArgs);
+
+      sinon.assert.calledTwice(ConversationView.updateDraft);
+      assert.equal(ConversationView.draft, existingDraft);
     });
   });
 
@@ -7199,6 +7203,8 @@ suite('conversation.js >', function() {
 
     suite('entering from composer ', function() {
       setup(function(done) {
+        recipientsList.textContent = '';
+
         transitionArgs.meta.prev = {
           panel: 'composer'
         };

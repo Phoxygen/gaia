@@ -116,6 +116,10 @@
      * Finish all initializing statusbar event handlers
      */
     finishInit: function() {
+      window.addEventListener(
+        'appstatusbar-fullscreen-statusbar-set-appearance', this);
+      window.addEventListener('appstatusbar-fullscreen-statusbar-show', this);
+      window.addEventListener('appstatusbar-fullscreen-statusbar-hide', this);
       window.addEventListener('sheets-gesture-begin', this);
       window.addEventListener('sheets-gesture-end', this);
       window.addEventListener('utilitytraywillshow', this);
@@ -163,7 +167,10 @@
 
       this.statusbarIcons.addEventListener('wheel', this);
 
-      LazyLoader.load(['js/utility_tray.js']).then(function() {
+      LazyLoader.load([
+        'js/utility_tray_motion.js',
+        'js/utility_tray.js'
+      ]).then(function() {
         this.utilityTray = UtilityTray;
         UtilityTray.init();
       }.bind(this)).catch((err) => {
@@ -226,6 +233,16 @@
           this.setAppearance();
           break;
 
+        case 'appstatusbar-fullscreen-statusbar-set-appearance':
+          this.setAppearance();
+          break;
+        case 'appstatusbar-fullscreen-statusbar-show':
+          this.topPanel.style.pointerEvents = 'none';
+          break;
+        case 'appstatusbar-fullscreen-statusbar-hide':
+          this.topPanel.style.pointerEvents = '';
+          break;
+
         case 'utility-tray-overlayopened':
         case 'utility-tray-overlayclosed':
         case 'utility-tray-abortopen':
@@ -265,6 +282,14 @@
           break;
 
         case 'appopened':
+          var app = evt.detail;
+          if (!app.isFullScreen() && !app.isFullScreenLayout()) {
+            this.element.setAttribute('aria-owns',
+              evt.detail.appChrome.element.id);
+          } else {
+            this.element.removeAttribute('aria-owns');
+          }
+          /* falls through */
         case 'appclosed':
           this.resumeUpdate(evt.type);
           /* falls through */
@@ -298,6 +323,7 @@
           this.element.classList.remove('hidden');
           this.element.classList.remove('fullscreen');
           this.element.classList.remove('fullscreen-layout');
+          this.element.removeAttribute('aria-owns');
           break;
         case 'activitydestroyed':
           this._updateMinimizedStatusbarWidth();
@@ -317,13 +343,13 @@
         return;
       }
 
+      var isFullScreen = app.isFullScreen() || document.mozFullScreen;
+
       this.element.classList.toggle('light',
-        !!(app.appChrome && app.appChrome.useLightTheming())
+        !!(app.appChrome && app.appChrome.useLightTheming()) && !isFullScreen
       );
 
-      this.element.classList.toggle('fullscreen',
-        app.isFullScreen()
-      );
+      this.element.classList.toggle('fullscreen', isFullScreen);
 
       this.element.classList.toggle('fullscreen-layout',
         app.isFullScreenLayout()
@@ -541,8 +567,8 @@
         return;
       }
 
-      // Do not forward events is utility-tray is active
-      if (this.utilityTray && this.utilityTray.active) {
+      // Do not forward events if the utility tray is shown.
+      if (this.utilityTray && this.utilityTray.shown) {
         return;
       }
 

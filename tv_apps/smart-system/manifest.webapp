@@ -32,7 +32,9 @@
     "input-manage":{},
     "systemXHR":{},
     "feature-detection": {},
-    "moz-extremely-unstable-and-will-change-webcomponents":{}
+    "moz-extremely-unstable-and-will-change-webcomponents":{},
+    "presentation-device-manage": {},
+    "moz-firefox-accounts": {}
   },
   "locales": {
     "ar": {
@@ -80,7 +82,8 @@
      { "bluetooth-opp-receiving-file-confirmation": "/index.html" },
      { "bluetooth-opp-transfer-start": "/index.html" },
      { "bluetooth-pairing-request": "/index.html" },
-     { "notification": "/index.html" }
+     { "notification": "/index.html" },
+     { "request-sync": "/index.html" }
   ],
   "connections": {
     "search-results": {
@@ -109,6 +112,18 @@
     },
     "customlaunchpath": {
       "description": "communicate with smart-home to launch arbitrary path.",
+      "rules": {
+        "minimumAccessLevel": "certified"
+      }
+    },
+    "fxa-mgmt": {
+      "description": "Firefox Accounts management API",
+      "rules": {
+        "minimumAccessLevel": "certified"
+      }
+    },
+    "gaia-sync-management": {
+      "description": "Firefox Sync management API",
       "rules": {
         "minimumAccessLevel": "certified"
       }

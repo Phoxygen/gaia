@@ -1,7 +1,7 @@
 <element name="accessibility" extends="section">
   <template>
 
-    <gaia-header action="back" data-href="#root">
+    <gaia-header ignore-dir action="back" data-href="#root">
       <h1 data-l10n-id="accessibility-header"></h1>
     </gaia-header>
 
@@ -11,6 +11,18 @@
           <a class="menu-item" href="#accessibility-colors">
             <span data-l10n-id="colorFilter"></span>
             <small id="colorFilter-desc"></small>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" href="#accessibility-audio">
+            <span data-l10n-id="accessibility-audio"></span>
+            <small id="audio-desc"></small>
+          </a>
+        </li>
+        <li>
+          <a class="menu-item" href="#accessibility-input">
+            <span data-l10n-id="accessibility-input"></span>
+            <small data-l10n-id="accessibility-input-desc"></small>
           </a>
         </li>
         <li data-show-name="accessibility.screenreader-show-settings" hidden>

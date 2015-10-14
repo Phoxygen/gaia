@@ -82,22 +82,18 @@ function L10nManager(gaiaDir,
 
       for (var key in self.locales) {
         var loc = self.locales[key];
-        var relPathInApp =
+
+        var isAbsolute = realURL[0] === '/';
+
+        var relPathInApp = isAbsolute ? '' :
           utils.dirname(file.path).substr(webapp.buildDirectoryFilePath.length);
+
         var resFile =
           getResourceFile(webapp, relPathInApp,
                           realURL, loc, isOfficialBranding);
-        var isShared = /\.?\/?shared\//.test(realURL);
+        var destFile = utils.getFile(webapp.buildDirectoryFilePath,
+          relPathInApp, realURL.replace('{locale}', loc));
 
-        var destFile;
-        if (isShared) {
-          destFile = utils.getFile(webapp.buildDirectoryFilePath,
-                                   realURL.replace('{locale}', loc));
-        } else {
-          destFile = utils.getFile(webapp.buildDirectoryFilePath,
-                                   relPathInApp,
-                                   realURL.replace('{locale}', loc));
-        }
         if (!resFile.exists()) {
           if (self.localeBasedir !== null) {
             utils.log(MODNAME, 'Resource file not found: ' + resFile.path);
@@ -326,9 +322,9 @@ function L10nManager(gaiaDir,
 
       if (locale === GAIA_SOURCE_LOCALE) {
         manifestProps = sourceLocaleProps;
-      } else if (locale in l20n.qps) {
+      } else if (locale in l20n.pseudo) {
         manifestProps = l20n.walkValue(
-          sourceLocaleProps, l20n.qps[locale].translate);
+          sourceLocaleProps, l20n.pseudo[locale].process);
       } else {
         manifestProps = getManifestProperties(webapp, locale);
       }

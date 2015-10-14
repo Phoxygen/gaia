@@ -137,7 +137,7 @@ PreviewGalleryController.prototype.onOptionsClick = function() {
 };
 
 PreviewGalleryController.prototype.shareCurrentItem = function() {
-  if (this.app.inSecureMode) {
+  if (this.app.inSecureMode || this.resizingImage) {
     return;
   }
 
@@ -169,7 +169,7 @@ PreviewGalleryController.prototype.shareCurrentItem = function() {
 
   var self = this;
 
-  this.stopItemDeletedEvent = true;
+  this.resizingImage = true;
   this.app.emit('busy', 'resizingImage');
 
   // Resize the image to the maximum pixel size for share activities.
@@ -195,7 +195,7 @@ PreviewGalleryController.prototype.shareCurrentItem = function() {
       }
       delete item.rotation;
     }
-    self.stopItemDeletedEvent = false;
+    self.resizingImage = false;
     self.app.emit('ready');
     launchShareActivity(resizedBlob);
   });
@@ -366,7 +366,7 @@ PreviewGalleryController.prototype.onItemDeleted = function(data) {
 
   // Check if this event is being stopped such as in the case
   // of resizing an image for a share activity.
-  if (this.stopItemDeletedEvent) {
+  if (this.resizingImage) {
     return;
   }
 
@@ -404,22 +404,28 @@ PreviewGalleryController.prototype.onHidden = function() {
 };
 
 PreviewGalleryController.prototype.updateThumbnail = function() {
-  var self = this;
+  // This is the media item that we want to create a thumbnail for.
   var media = this.thumbnailItem = this.items[0] || null;
-  var blob;
 
   if (media === null) {
     this.app.emit('newthumbnail', null);
     return;
   }
 
-  if (media.isVideo) {
+  // To create a thumbanil, we first need to figure out which image
+  // blob to use, and what the size and rotation of that image is.
+  var blob;                    // The image we'll create the thumbnail from.
+  var metadata = {             // The metadata for that image.
+    rotation: media.rotation,
+    mirrored: media.mirrored
+  };
 
+  if (media.isVideo) {
     // If it is a video we can create a thumbnail from the poster image
     blob = media.poster.blob;
-    media = media.poster;
+    metadata.width = media.poster.width;
+    metadata.height = media.poster.height;
   } else {
-
     // If it is a photo we want to use the EXIF preview rather than
     // decoding the whole image if we can.
     if (media.preview) {
@@ -435,6 +441,8 @@ PreviewGalleryController.prototype.updateThumbnail = function() {
       if (Math.abs(fullRatio - previewRatio) < 0.01) {
         blob = media.blob.slice(media.preview.start, media.preview.end,
                                 'image/jpeg');
+        metadata.width = media.preview.width;
+        metadata.height = media.preview.height;
       }
     }
 
@@ -442,14 +450,14 @@ PreviewGalleryController.prototype.updateThumbnail = function() {
     // use the full image
     if (!blob) {
       blob = media.blob;
+      metadata.width = media.width;
+      metadata.height = media.height;
     }
   }
 
-  createThumbnailImage(blob, media, this.thumbnailSize, gotThumbnail);
-
-  function gotThumbnail(blob) {
-    self.app.emit('newthumbnail', blob);
-  }
+  createThumbnailImage(blob, metadata, this.thumbnailSize, (thumbnail) => {
+    this.app.emit('newthumbnail', thumbnail);
+  });
 };
 
 });

@@ -1,6 +1,5 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* Any copyright is dedicated to the Public Domain.
+ * http://creativecommons.org/publicdomain/zero/1.0/ */
 
 'use strict';
 
@@ -16,12 +15,16 @@ var SynctoServerFixture = (function() {
   var syncEngineOptions = {
     URL: 'http://localhost:8000/v1/',
     assertion: 'test-assertion-mock',
-    xClientState: 'test-xClientState-mock',
-    kB: '85c4f8c1d8e3e2186824c127af786891dd03c6e05b1b45f28f7181211bf2affb',
+    // Taken from https://bugzilla.mozilla.org/show_bug.cgi?id=959919#c13.
+    kB: 'fd5c747806c07ce0b9d69dcfea144663e630b65ec4963596a22f24910d7dd15d',
     adapters: {
       history: AdapterMock()
     }
   };
+
+  // Taken from https://bugzilla.mozilla.org/show_bug.cgi?id=959919#c13.
+  var xClientState = '6ae94683571c7a7c54dab4700aa3995f';
+
   var remoteData = {
     meta: {
       id: 'global',
@@ -92,7 +95,7 @@ gh0YOM9L2NC/uiKEb1Ynr2Fos`,
       })
     },
     'wrong-id': {
-      id: '825a1b6a-0000-4000-8000-000000000002',
+      id: {},
       last_modified: 1234567890123,
       payload: JSON.stringify({
         ciphertext: `o/VpkqMj1tlT8t2youwsS2FgvQeonoHxqjGsRTu1+4swfyBq/QsnKfgOOM\
@@ -118,6 +121,7 @@ ce/Global_Objects/Object/proto`,
   };
   return {
     syncEngineOptions: syncEngineOptions,
+    xClientState: xClientState,
     remoteData: remoteData,
     historyEntryDec: historyEntryDec
   };

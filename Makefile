@@ -123,6 +123,9 @@ BUILD_DEBUG?=0
 # Enable PerformanceTiming logs
 PERF_LOGGING?=0
 
+# Are we building for RAPTOR?
+RAPTOR?=0
+
 # Enable hardware composing by default
 HARDWARE_COMPOSER?=1
 
@@ -567,6 +570,7 @@ define BUILD_CONFIG
   "SHARE_PERF_USAGE": "$(SHARE_PERF_USAGE)", \
   "DEFAULT_KEYBOAD_SYMBOLS_FONT": "$(DEFAULT_KEYBOAD_SYMBOLS_FONT)", \
   "DEFAULT_GAIA_ICONS_FONT": "$(DEFAULT_GAIA_ICONS_FONT)", \
+  "RAPTOR": "$(RAPTOR)", \
   "RAPTOR_TRANSFORM": "$(RAPTOR_TRANSFORM)", \
   "RAPTOR_TRANSFORMER_PATH": "$(RAPTOR_TRANSFORMER_PATH)", \
   "NGA_SERVICE_WORKERS": "$(NGA_SERVICE_WORKERS)", \
@@ -578,7 +582,6 @@ export BUILD_CONFIG
 
 # Generate profile/
 $(PROFILE_FOLDER): profile-dir build-app test-agent-config contacts extensions b2g_sdk .git/hooks/pre-commit
-	@echo "[DEBUG_LOG]: LD_LIBRARY_PATH=$(LD_LIBRARY_PATH)"
 ifeq ($(BUILD_APP_NAME),*)
 	@echo "Profile Ready: please run [b2g|firefox] -profile $(CURDIR)$(SEP)$(PROFILE_FOLDER)"
 endif
@@ -621,6 +624,12 @@ endif
 
 profile-dir:
 	@test -d $(PROFILE_FOLDER) || mkdir -p $(PROFILE_FOLDER)
+ifeq ($(GAIA_DEVICE_TYPE), tv)
+	@test -d $(PROFILE_FOLDER)/dummy || mkdir -p $(PROFILE_FOLDER)/dummy
+	@cp $(GAIA_DIR)/build/config/tv/simulator/settings.json $(PROFILE_FOLDER)/dummy/
+	@cp $(GAIA_DIR)/build/config/tv/simulator/tv1.ogv $(PROFILE_FOLDER)/dummy/
+	@cp $(GAIA_DIR)/build/config/tv/simulator/tv2.ogv $(PROFILE_FOLDER)/dummy/
+endif
 
 # Copy preload contacts to profile
 contacts: profile-dir
@@ -837,7 +846,11 @@ caldav-server-install:
 
 .PHONY: raptor
 raptor: node_modules
-	PERF_LOGGING=1 DEVICE_DEBUG=1 GAIA_OPTIMIZE=1 NOFTU=1 SCREEN_TIMEOUT=0 make reset-gaia
+ifneq ($(APP),)
+	RAPTOR=1 PERF_LOGGING=1 DEVICE_DEBUG=1 GAIA_OPTIMIZE=1 NOFTU=1 SCREEN_TIMEOUT=0 APP=$(APP) make install-gaia
+else
+	RAPTOR=1 PERF_LOGGING=1 DEVICE_DEBUG=1 GAIA_OPTIMIZE=1 NOFTU=1 SCREEN_TIMEOUT=0 make reset-gaia
+endif
 
 .PHONY: raptor-transformer
 raptor-transformer: node_modules
@@ -845,7 +858,7 @@ ifeq ($(RAPTOR_TRANSFORM_RULES),)
 	@(echo "Please ensure you specify the 'RAPTOR_TRANSFORM_RULES=<directory with the *.esp files>'" && exit 1)
 endif
 	@test -d $(RAPTOR_TRANSFORM_RULES) || (echo "Please ensure the '$(RAPTOR_TRANSFORM_RULES)' directory exists" && exit 1)
-	RAPTOR_TRANSFORM=1 PERF_LOGGING=1 DEVICE_DEBUG=1 GAIA_OPTIMIZE=1 NOFTU=1 SCREEN_TIMEOUT=0 make reset-gaia
+	RAPTOR_TRANSFORM=1 RAPTOR=1 PERF_LOGGING=1 DEVICE_DEBUG=1 GAIA_OPTIMIZE=1 NOFTU=1 SCREEN_TIMEOUT=0 make reset-gaia
 
 .PHONY: tests
 tests: app offline
@@ -1085,7 +1098,7 @@ clean:
 
 # clean out build products and tools
 really-clean: clean
-	rm -rf b2g-* .b2g-* b2g_sdk node_modules mulet modules.tar js-marionette-env "$(NODE_MODULES_CACHEDIR)"
+	rm -rf b2g-* .b2g-* b2g_sdk node_modules mulet firefox/ modules.tar js-marionette-env "$(NODE_MODULES_CACHEDIR)"
 
 .git/hooks/pre-commit: tools/pre-commit
 	test -d .git && cp tools/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit || true

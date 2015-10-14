@@ -105,17 +105,16 @@ class ContactForm(Base):
         return self.marionette.find_element(*self._comment_locator).text
 
     def type_comment(self, value):
-        self._type_in_field(self._add_new_note_locator, self._comment_locator, value)
+        if self.is_element_present(*self._comment_locator):
+            element = self.marionette.find_element(*self._comment_locator)
+            element.clear()
+            element.send_keys(value)
+        else:
+            self._type_in_field(self._add_new_note_locator, self._comment_locator, value)
+
 
     def tap_comment(self):
-        element = self.marionette.find_element(*self._add_new_note_locator)
-        element.tap()
-        self.marionette.execute_script(
-            'arguments[0].scrollIntoView(true);', [element])
-        element = self.marionette.find_element(*self._comment_locator)
-        self.marionette.execute_script(
-            'arguments[0].scrollIntoView(true);', [element])
-        element.tap()
+        self.marionette.find_element(*self._comment_locator).tap()
 
     @property
     def picture_style(self):
@@ -184,7 +183,7 @@ class EditContact(ContactForm):
 
 class NewContact(ContactForm):
 
-    _src = 'app://communications.gaiamobile.org/contacts/views/form/form.html?action=new'
+    _src = 'app://communications.gaiamobile.org/contacts/views/form/form.html'
     _done_button_locator = (By.ID, 'save-button')
 
     def __init__(self, marionette):
@@ -219,6 +218,7 @@ class NewContact(ContactForm):
             from gaiatest.apps.contacts.app import Contacts
             return Contacts(self.marionette)
         else:
-            Wait(self.marionette).until(lambda m: self.apps.displayed_app.name != 'Communications')
+            from gaiatest.apps.contacts.app import Contacts
+            Contacts(self.marionette).wait_to_not_be_displayed()
             # Fall back to the underlying app
             self.apps.switch_to_displayed_app()
