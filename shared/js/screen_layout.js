@@ -41,6 +41,7 @@ var ScreenLayout = {
   _isOnRealDevice: undefined,
 
   isOnRealDevice: function sl_isOnRealDevice() {
+    return true;
     if (typeof(this._isOnRealDevice) !== 'undefined') {
       return this._isOnRealDevice;
     }
@@ -64,6 +65,7 @@ var ScreenLayout = {
   // if type is undeined, it will return matching type from "defaultQueries"
   // if type is given, it will return boolean based on all watching queries
   getCurrentLayout: function sl_getCurrentLayout(type) {
+    return 'tiny';
     if (type === undefined) {
       for (var name in this.defaultQueries) {
         if (this.queries[name] && this.queries[name].matches) {
