@@ -293,13 +293,14 @@
         this.navigate(url);
         return;
       }
-      */
+
       var hasScheme = UrlHelper.hasScheme(input);
 
       // No scheme, prepend basic protocol and return
       if (!hasScheme) {
         input = 'http://' + input;
       }
+      */
 
       this.navigate(input);
     },
