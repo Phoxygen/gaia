@@ -281,6 +281,9 @@
 
       var input = msg.data.input;
 
+      // XXX temp hack: don't limit to valid url
+      // (otherwise can't navigate to chrome:// urls)
+      /*
       // Not a valid URL, could be a search term
       if (UrlHelper.isNotURL(input)) {
         this.metrics.report('websearch', SearchProvider('title'));
@@ -290,7 +293,7 @@
         this.navigate(url);
         return;
       }
-
+      */
       var hasScheme = UrlHelper.hasScheme(input);
 
       // No scheme, prepend basic protocol and return
