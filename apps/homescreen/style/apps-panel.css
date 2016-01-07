@@ -37,12 +37,12 @@ gaia-app-icon {
   text-shadow: rgba(0, 0, 0, 0.5) 0 0.1rem 0.3rem;
 }
 
-/* Small icons are scaled down 0.75x, so apply the reverse transforms to the
+/* Small icons are scaled down 0.5x, so apply the reverse transforms to the
  * font so that it conforms to spec.
  */
 #apps.small gaia-app-icon {
-  font-size: calc(1.2rem / 0.75);
-  text-shadow: rgba(0, 0, 0, 0.5) 0 calc(0.1rem / 0.75) calc(0.3rem / 0.75);
+  font-size: calc(1.2rem / 0.5);
+  text-shadow: rgba(0, 0, 0, 0.5) 0 calc(0.1rem / 0.5) calc(0.3rem / 0.5);
 }
 
 gaia-app-icon.launching {
@@ -63,8 +63,8 @@ gaia-app-icon.launching {
 }
 
 #apps.small > .gaia-container-child > .icon-container {
-  width: 24vw;
-  height: calc(24vw + 1.9rem);
+  width: 16vw;
+  height: calc(16vw + 1.9rem);
 }
 
 #apps > .gaia-container-child.dragging > .icon-container > gaia-app-icon {
@@ -73,11 +73,11 @@ gaia-app-icon.launching {
 }
 
 #apps.small > .gaia-container-child > .icon-container > gaia-app-icon {
-  transform: scale(0.75) translate(-4vw, -4vw);
+  transform: translate(-6vw, -6vw) scale(0.5);
 }
 
 #apps.small > .gaia-container-child.dragging > .icon-container > gaia-app-icon {
-  transform: scale(0.8) translate(-3.2vw, -3.2vw);
+  transform: scale(0.6) translate(-7vw, -7vw);
 }
 
 .dragging:not(.autoscroll) #apps > .gaia-container-child > .icon-container {
@@ -109,7 +109,7 @@ gaia-app-icon.launching {
 
 @keyframes small-icon-added {
   0% { opacity: 0; transform: scale(0.375) translate(-6vw, -6vw); }
-  100% { opacity: 1; transform: scale(0.75) translate(-4vw, -4vw); }
+  100% { opacity: 1; transform: scale(0.25) translate(-12vw, -12vw); }
 }
 
 #apps > .gaia-container-child.removed gaia-app-icon {
@@ -127,7 +127,7 @@ gaia-app-icon.launching {
 }
 
 @keyframes small-icon-removed {
-  0% { transform: scale(0.75) translate(-4vw, -4vw); opacity: 1; }
+  0% { transform: scale(0.25) translate(-12vw, -12vw); opacity: 1; }
   100% { transform: scale(0.375) translate(-6vw, -6vw); opacity: 0; }
 }
 
@@ -155,15 +155,15 @@ gaia-app-icon.uneditable {
 }
 
 @keyframes small-icon-uneditable {
-  0% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(0deg); }
-  10% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(-15deg); }
-  20% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(15deg); }
-  30% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(-15deg); }
-  40% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(15deg); }
-  50% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(-15deg); }
-  60% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(15deg); }
-  70% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(-15deg); }
-  80% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(15deg); }
-  90% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(-15deg); }
-  100% { transform: scale(0.75) translate(-4vw, -4vw) rotateZ(0deg); }
+  0% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(0deg); }
+  10% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(-15deg); }
+  20% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(15deg); }
+  30% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(-15deg); }
+  40% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(15deg); }
+  50% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(-15deg); }
+  60% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(15deg); }
+  70% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(-15deg); }
+  80% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(15deg); }
+  90% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(-15deg); }
+  100% { transform: scale(0.25) translate(-12vw, -12vw) rotateZ(0deg); }
 }

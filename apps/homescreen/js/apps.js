@@ -595,7 +595,7 @@
 
     refreshGridSize: function() {
       var children = this.icons.children;
-      var cols = this.settings.small ? 4 : 3;
+      var cols = this.settings.small ? 6 : 3;
 
       var visibleChildren = 0;
       var firstVisibleChild = -1;
