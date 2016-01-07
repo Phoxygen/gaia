@@ -286,7 +286,12 @@
                 </div>
                 <!-- IME list -->
                 <div id="keyboard-show-ime-list">
+ 		  <!--
+                  XXX: removed class="..." to fix a weird graphic issue, e.g when opening glowing-bear
+                  Investigation required to find the real root issue
                   <div class="fake-notification" role="link">
+		  -->
+                  <div >
                     <div data-icon="keyboard-circle" aria-hidden="true"></div>
                     <div class="title-container"></div>
                     <div class="detail" data-l10n-id="ime-switching-tip"></div>
