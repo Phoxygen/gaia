@@ -72,7 +72,7 @@
       if (!session.server.port) {
         dialog = this._buildUSBDialog(session);
       } else {
-        dialog = this._buildTCPDialog(session);
+        dialog = this._buildUSBDialog(session);
       }
 
       if (!dialog) {
