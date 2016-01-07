@@ -1606,7 +1606,7 @@
       'landscape-secondary': [90, 270, 90, 180,
                 0, 180, Service.query('isDefaultPortrait') ? 180 : 90]
     };
-    return OrientationRotationTable[orientation1][orientation2];
+    return OrientationRotationTable['landscape-primary'][orientation2];
   }
 
   AppWindow.prototype.determineRotationDegree =

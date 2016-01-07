@@ -262,7 +262,7 @@
       // until it works. It may fail at the moment the screenchange
       // event has been fired, so we may need to try it several times.
       var tryLockOrientation = () => {
-        if (screen.mozLockOrientation('portrait-primary')) {
+        if (screen.mozLockOrientation('landscape-primary')) {
           if (!this.orientationLockID) {
             throw new Error('No orientation ID. This function should only' +
                 'be invoked as a interval callback');
