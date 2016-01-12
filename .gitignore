@@ -68,6 +68,7 @@ manifest.appcache
 
 /outoftree_apps/
 /distros/spark/outoftree_apps/
+/distros/ronin/outoftree_apps/
 
 /distribution/
 /.modules.tar
