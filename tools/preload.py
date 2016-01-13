@@ -51,7 +51,7 @@ def open_from_url(url):
     return urllib.urlopen(url)
 
 
-def get_absolute_url(domain, path, icon):
+def get_absolute_url(domain, path, icon, path_relative_from_manifest):
     icon_path = None
     origin = urlparse(''.join([domain, path]))
     if has_scheme(icon):
@@ -63,6 +63,8 @@ def get_absolute_url(domain, path, icon):
 
     if(path.startswith('http')):
         return icon_path
+    elif path_relative_from_manifest:
+        return '%s://%s%s%s' % (origin.scheme, origin.netloc, origin.path, icon_path)
     else:
         return '%s://%s%s' % (origin.scheme, origin.netloc, icon_path)
 
@@ -91,9 +93,10 @@ def fetch_icon_from_url(url):
     return convert_icon(image, mimetypes.guess_type(url)[0])
 
 
-def fetch_icon(key, icons, domain, path, apppath):
+def fetch_icon(key, icons, domain, path, apppath, path_relative_from_manifest=False):
     iconurl = get_absolute_url(domain, path,
-                               urlparse(icons[key]))
+                               urlparse(icons[key]), path_relative_from_manifest)
+
     icon_base64 = ''
     if iconurl[0] == '/':
         logger.info('locally...')
@@ -220,7 +223,7 @@ def fetch_appcache(domain, remote_dir, local_dir, lines):
     return (newlines, headers)
 
 
-def fetch_webapp(app_url, directory=None):
+def fetch_webapp(app_url, directory=None, override_origin=None):
     """
     get webapp file and parse for preinstalled webapp
 
@@ -230,11 +233,18 @@ def fetch_webapp(app_url, directory=None):
     [appname]/metadata.json
     [appname]/update.webapp (if package_path is defined)
     [appname]/cache/ (if appcache_path is defined)
+
+    If override_origin is set that means the webapp is hosted on a different
+    origin than the one used to download the manifest and assets.
+    In this case, url are understood to be relative to manifest.webapp regarding
+    the domain hosting this manifest.
     """
     domain, path = split_url(app_url)
     url = urlparse(app_url)
     metadata = {'origin': domain}
     manifest_filename = 'manifest.webapp'
+
+    path_relative_from_manifest = True if override_origin else False
 
     if url.scheme:
         logger.info('manifest: ' + app_url)
@@ -245,9 +255,16 @@ def fetch_webapp(app_url, directory=None):
         if 'etag' in manifest_url.headers:
             metadata['etag'] = manifest_url.headers['etag']
     else:
-        logger.info('extract manifest from zip...')
-        appzip = ZipFile(app_url, 'r').read('manifest.webapp')
-        manifest = json.loads(appzip.decode('utf-8-sig'))
+        if app_url[-3:] == 'zip':
+          logger.info('extract manifest from zip...')
+          appzip = ZipFile(app_url, 'r').read('manifest.webapp')
+          manifest = json.loads(appzip.decode('utf-8-sig'))
+        else:
+          logger.info('read manifest from file... %s' % app_url)
+          manifest = json.loads(open(app_url,'r').read().decode('utf-8-sig'))
+          domain = 'file:'
+          metadata['origin'] = override_origin
+          path_relative_from_manifest = False
 
     appname = get_directory_name(manifest['name'])
     app_dir = appname
@@ -257,7 +274,7 @@ def fetch_webapp(app_url, directory=None):
     if not os.path.exists(app_dir):
         os.mkdir(app_dir)
 
-    if 'package_path' in manifest or not url.scheme:
+    if ('package_path' in manifest or not url.scheme) and not override_origin:
         manifest_filename = 'update.webapp'
         filename = 'application.zip'
         metadata.pop('origin', None)
@@ -284,7 +301,7 @@ def fetch_webapp(app_url, directory=None):
     logger.info('fetching icons...')
     for key in manifest['icons']:
         manifest['icons'][key] = fetch_icon(
-            key, manifest['icons'], domain, path, app_dir)
+            key, manifest['icons'], domain, path, app_dir, path_relative_from_manifest)
 
     if 'appcache_path' in manifest:
         metadata_info = [];
@@ -315,7 +332,11 @@ def fetch_webapp(app_url, directory=None):
             resources.write('\n}\n');
 
     # add manifestURL for update
-    metadata['manifestURL'] = app_url
+
+    if override_origin:
+      metadata['manifestURL'] = '{}/manifest.webapp'.format(override_origin)
+    else:
+      metadata['manifestURL'] = app_url
     metadata['external'] = True
 
     f = file(os.path.join(app_dir, 'metadata.json'), 'w')
@@ -358,8 +379,10 @@ def main():
         with open('list') as fd:
             while True:
                 line = fd.readline()
-                if (len(line.split(',')) > 1):
-                    fetch_webapp(line.split(',')[1].rstrip('\n'))
+                splitted = line.split(',')
+                if (len(splitted) > 1):
+                    override_orig=splitted[2] if len(splitted) > 2 else None
+                    fetch_webapp(splitted[1].rstrip('\n'), override_origin=override_orig)
                 else:
                     break
 
