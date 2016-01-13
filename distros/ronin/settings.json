@@ -1,0 +1,7 @@
+{
+  "developer.menu.enabled": true,
+  "devtools.remote.wifi.enabled": true,
+  "devtools.remote.wifi.visible": true,
+  "usb.transfer": "1",
+  "software-button.enabled": true
+}
