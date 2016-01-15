@@ -16,7 +16,9 @@
       'power',
       'home',
       'mozhomescreen',
-      'exit'
+      'exit',
+      'os',
+      'meta'
     ]),
     APP_CANCELLED_KEYS: Object.freeze([
       'volumeup',
@@ -27,13 +29,17 @@
     HOME_KEY_ALIAS: Object.freeze([
       'home',
       'mozhomescreen',
-      'exit'
+      'exit',
+      'os', // super key on linux
+      'meta' // command key on mac
     ]),
     TRANSLATION_TABLE: Object.freeze({
       'power': 'sleep-button',
       'exit': 'home-button',
       'home': 'home-button',
       'mozhomescreen': 'home-button',
+      'os': 'home-button',
+      'meta': 'home-button',
       'volumeup': 'volume-up-button',
       'volumedown': 'volume-down-button',
       'camera': 'camera-button'
