@@ -325,6 +325,9 @@
         // Ignore button releases that occur in this state.
         // These can happen after volumedown+sleep and home+volume.
         return;
+      case 'devtools-button-release':
+        this.hardwareButtons.publish('devtools-toggle');
+        break;
     }
     console.error('Unexpected hardware key: ', type);
   };

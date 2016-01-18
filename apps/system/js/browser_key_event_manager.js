@@ -19,6 +19,7 @@
       'exit',
       'os',
       'meta'
+      'f12'
     ]),
     APP_CANCELLED_KEYS: Object.freeze([
       'volumeup',
@@ -42,7 +43,8 @@
       'meta': 'home-button',
       'volumeup': 'volume-up-button',
       'volumedown': 'volume-down-button',
-      'camera': 'camera-button'
+      'camera': 'camera-button',
+      'f12': 'devtools-button'
     }),
     _getLowerCaseKeyName: function bkem_getLowerCaseKeyName(event) {
       return event.key && event.key.toLowerCase();

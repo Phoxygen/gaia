@@ -35,6 +35,8 @@ textarea,
   background-size: cover; /* Possible memory over-consumption with huge images, it should be removed for improving stability*/
   background-repeat: no-repeat;
   background-position: 50% 50%;
+
+  --devtools-scale: 0.4;
 }
 
 /*
@@ -240,6 +242,31 @@ textarea,
   max-height: 100%;
   border: 0;
   overflow: hidden;
+}
+
+#windows.devtools-on {
+  width: calc(100% - 100% * var(--devtools-scale));
+}
+
+#windows.devtools-on  div {
+  width: 100% !important;
+}
+
+#devtools {
+  display: none;
+  position: absolute;
+  left: calc(100% - 100% * var(--devtools-scale));
+  width: calc(100% * var(--devtools-scale));
+  top: 0;
+  height: 100%;
+  max-height: 100%;
+  border: 0;
+  overflow: hidden;
+}
+
+#devtools iframe {
+  width: 100%;
+  height: 100%;
 }
 
 #windows .appWindow:not(.homescreen):not(.lockScreenInputWindow)::before {
