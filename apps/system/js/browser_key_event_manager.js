@@ -18,7 +18,7 @@
       'mozhomescreen',
       'exit',
       'os',
-      'meta'
+      'meta',
       'f12'
     ]),
     APP_CANCELLED_KEYS: Object.freeze([
