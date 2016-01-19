@@ -36,7 +36,7 @@ textarea,
   background-repeat: no-repeat;
   background-position: 50% 50%;
 
-  --devtools-scale: 0.4;
+  --devtools-width: 40%;
 }
 
 /*
@@ -245,7 +245,7 @@ textarea,
 }
 
 #windows.devtools-on {
-  width: calc(100% - 100% * var(--devtools-scale));
+  width: calc(100% - var(--devtools-width));
 }
 
 #windows.devtools-on  div {
@@ -255,8 +255,8 @@ textarea,
 #devtools {
   display: none;
   position: absolute;
-  left: calc(100% - 100% * var(--devtools-scale));
-  width: calc(100% * var(--devtools-scale));
+  left: calc(100% - var(--devtools-width));
+  width: calc(var(--devtools-width));
   top: 0;
   height: 100%;
   max-height: 100%;
