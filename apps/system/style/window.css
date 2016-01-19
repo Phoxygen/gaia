@@ -276,7 +276,8 @@ html[dir="rtl"] .appWindow.invoked {
 .appWindow.homescreen.inactive {
   transform: translateX(-100%);
 }
-.appWindow.homescreen.active {
+.appWindow.homescreen.active,
+.appWindow.homescreen.last-active {
   transform: translateX(0%);
 }
 .appWindow.homescreen.fadeout .fade-overlay.hidden {
@@ -390,7 +391,8 @@ html[dir="rtl"] .appWindow.invoked {
 }
 
 .appWindow.suspended > .identification-overlay,
-.appWindow:not(.active):not(.in-task-manager).overlay > .identification-overlay {
+.appWindow:not(.active):not(.in-task-manager).overlay > .identification-overlay,
+.appWindow:not(.last-active):not(.in-task-manager).overlay > .identification-overlay {
   transition: none;
 
   visibility: visible;
@@ -607,7 +609,8 @@ html[dir="rtl"] .appWindow.invoked {
   the transform for this case.
   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1212960
 */
-#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).active {
+#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).active,
+#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).last-active {
   transform: unset;
 }
 
@@ -633,6 +636,7 @@ html[dir="rtl"] .appWindow.invoked {
 }
 
 #screen #windows > .appWindow.active:not(.will-become-inactive):not(.back),
+#screen #windows > .appWindow.last-active:not(.will-become-inactive):not(.back),
 #screen #windows > .appWindow.will-become-active,
 #screen #windows > .appWindow.inside-edges {
   opacity: 1;
@@ -663,12 +667,14 @@ html[dir="rtl"] .appWindow.invoked {
   }
 }
 
-#windows .appWindow.active iframe {
+#windows .appWindow.active iframe,
+#windows .appWindow.last-active iframe {
   transition-property: transform;
   transition-duration: var(--transition-duration);
 }
 
-#screen.locked #windows .appWindow.active iframe {
+#screen.locked #windows .appWindow.active iframe,
+#screen.locked #windows .appWindow.last-active iframe {
   transition-property: none;
 }
 

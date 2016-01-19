@@ -306,7 +306,8 @@
   z-index: 8;
 }
 
-#screen > [data-z-index-level="app"] > .appWindow.active:not(.homescreen):not(.attentionWindow) {
+#screen > [data-z-index-level="app"] > .appWindow.active:not(.homescreen):not(.attentionWindow),
+#screen > [data-z-index-level="app"] > .appWindow.last-active:not(.homescreen):not(.attentionWindow) {
   z-index: 7;
 }
 
