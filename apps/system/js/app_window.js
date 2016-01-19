@@ -1847,7 +1847,8 @@
    * fade out to window to black.
    */
   AppWindow.prototype.fadeOut = function aw__fadeout() {
-    if (!this.isActive() && this.element) {
+    /* XXX NEEDED? */
+    /*if (!this.isActive() && this.element)*/ {
       this.element.classList.add('fadeout');
       this.debug(' fade out >>>> ');
     }

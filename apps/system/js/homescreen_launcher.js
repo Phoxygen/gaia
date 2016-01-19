@@ -86,10 +86,10 @@
     },
 
     _handle_appopening: function(evt) {
+      this.getHomescreen().fadeOut();
       // Fade out homescreen if the opening app is landscape.
       if (evt.detail.rotatingDegree === 90 ||
           evt.detail.rotatingDegree === 270) {
-        this.getHomescreen().fadeOut();
       }
     },
 
