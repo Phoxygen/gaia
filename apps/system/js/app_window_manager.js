@@ -924,13 +924,14 @@
         activated = true;
       }
 
-      if (this._previousActiveApp) {
+      if (this._previousActiveApp && this._previousActiveApp.element) {
         this._previousActiveApp.element.classList.remove('last-active');
       }
       if (this._activeApp && !this._activeApp.isHomescreen) {
         this._previousActiveApp = this._activeApp;
       }
-      if (this._previousActiveApp && this._previousActiveApp != this._apps[instanceID]) {
+      if (this._previousActiveApp && this._previousActiveApp.element
+          && this._previousActiveApp != this._apps[instanceID]) {
         this._previousActiveApp.element.classList.add('last-active');
       }
       this._activeApp = this._apps[instanceID];
