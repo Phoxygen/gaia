@@ -27,12 +27,12 @@
   direction: ltr;
 }
 
-@media not all and (-moz-physical-home-button) {
+/*@media not all and (-moz-physical-home-button) {
   #screen:not(.software-button-disabled) #task-manager {
     height: calc(100% - var(--software-home-button-height));
     bottom: var(--software-home-button-height);
   }
-}
+}*/
 
 /* This reduce overpaint while the cards view is active */
 #screen.cards-view #windows {

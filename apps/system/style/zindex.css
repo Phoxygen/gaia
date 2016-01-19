@@ -299,20 +299,28 @@
  * - app frame must be on top of homescreen frame, inactive or active.
  * - finally, everything else needs to be on top of them (hence the lowest nums)
  */
+#screen > [data-z-index-level="app"] > .appWindow.homescreen {
+  z-index: 12 !important;
+}
 #screen > [data-z-index-level="app"] > .appWindow.out-to-right {
   z-index: 8;
+}
+
+#screen > [data-z-index-level="app"] > .appWindow.active:not(.homescreen):not(.attentionWindow),
+#screen > [data-z-index-level="app"] > .appWindow.last-active:not(.homescreen):not(.attentionWindow) {
+  z-index: 7;
 }
 
 #screen > [data-z-index-level="app"] > .appWindow.transition-opening:not(.homescreen):not(.attentionWindow) {
   z-index: 7;
 }
-
+#screen > [data-z-index-level="app"] > .appWindow.last-active:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow) {
+  z-index: 7 !important;
+}
 #screen > [data-z-index-level="app"] > .appWindow.transition-closing:not(.homescreen):not(.attentionWindow) {
   z-index: 6;
 }
-
-#screen > [data-z-index-level="app"] > .appWindow.active:not(.homescreen):not(.attentionWindow),
-#screen > [data-z-index-level="app"] > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow),
+#screen > [data-z-index-level="app"] > .appWindow:not(.active):not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow),
 #screen > [data-z-index-level="app"] > .appWindow.will-become-active {
   z-index: 6;
 }
@@ -321,7 +329,7 @@
   z-index: 5;
 }
 
-#screen > [data-z-index-level="app"] > .appWindow.homescreen.active {
+#screen > [data-z-index-level="app"] > .appWindow.homescreen {
   z-index: 4;
 }
 
@@ -329,9 +337,7 @@
   z-index: 3;
 }
 
-#screen > [data-z-index-level="app"] > .appWindow.homescreen {
-  z-index: 2;
-}
+
 
 #screen > [data-z-index-level="app"] > .appWindow.homescreen.transition-opening,
 #screen > [data-z-index-level="app"] > .appWindow.homescreen.transition-closing {

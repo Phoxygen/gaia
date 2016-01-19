@@ -297,11 +297,17 @@
      * @param {String} [closeAnimation] The close animation for closing app.
      * @memberOf module:AppWindowManager
      */
+
+    _previousActiveApp: null,
     display: function awm_display(newApp, openAnimation, closeAnimation,
                                   eventType) {
       this._dumpAllWindows();
       var appCurrent = this._activeApp;
       var appNext = newApp || this.service.query('getHomescreen', true);
+
+      if (!newApp && appCurrent.isHomescreen && this._previousActiveApp) {
+        appNext = this._previousActiveApp;
+      }
 
       if (!appNext) {
         this.debug('no next app.');
@@ -918,6 +924,15 @@
         activated = true;
       }
 
+      if (this._previousActiveApp && this._previousActiveApp.element) {
+        this._previousActiveApp.element.classList.remove('last-active');
+      }
+      if (this._activeApp && !this._activeApp.isHomescreen) {
+        this._previousActiveApp = this._activeApp;
+      }
+      if (this._previousActiveApp && this._previousActiveApp.element) {
+        this._previousActiveApp.element.classList.add('last-active');
+      }
       this._activeApp = this._apps[instanceID];
       if (!this._activeApp) {
         this.debug('no active app alive: ' + instanceID);
