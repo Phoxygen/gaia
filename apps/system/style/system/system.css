@@ -248,7 +248,7 @@ textarea,
   width: calc(100% - var(--devtools-width));
 }
 
-#windows.devtools-on  div {
+#windows.devtools-on  div.appWindow {
   width: 100% !important;
 }
 
