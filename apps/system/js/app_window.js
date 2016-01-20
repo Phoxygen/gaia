@@ -2361,7 +2361,7 @@
     this._dirtyStyleProperties = {};
     if (this.element && this.transitionController) {
       this.element.classList.add('in-task-manager');
-      this.close( this.isActive() ? 'to-cardview' : 'immediate' );
+      this.close('immediate');
     }
   };
 

@@ -6,6 +6,7 @@
   height: 100%;
   -moz-user-select: none;
   background-color: rgb(51, 51, 51);
+  transition: transform 0.5s ease-in-out;
 }
 
 #cards-view {
@@ -57,7 +58,6 @@
 #task-manager.active {
   visibility: inherit;
   transform: translateX(-100%);
-  transition: transform 1.0 ease-in-out;
 }
 
 #task-manager .no-recent-apps {
