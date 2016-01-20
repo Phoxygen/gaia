@@ -1467,7 +1467,8 @@
         return Promise.resolve();
       }
       if (this.identificationOverlay) {
-        this.element.classList.add('overlay');
+        /*this.element.classList.add('overlay');
+        pepp: ~fix the flashing in taskamanger -> homescreen transitions */
       }
 
       this.screenshotOverlay.classList.add('visible');
@@ -2070,6 +2071,10 @@
       return;
     }
 
+    if (this.isHomescreen) {
+      this.debug('die latency, die');
+      setTimeout(callback);
+    }
     this.debug('requesting to open');
 
     if (!this.loaded ||

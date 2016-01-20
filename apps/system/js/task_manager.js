@@ -339,7 +339,7 @@ TaskManager.prototype = {
     // Set the proper transition...
     if (newApp.isHomescreen) {
       this.element.classList.add('to-home');
-      newApp.open('home-from-cardview');
+      newApp.open('immediate');
     } else {
       newApp.open(animation);
     }
@@ -573,7 +573,14 @@ TaskManager.prototype = {
         if (!this.isShown()) {
           this.show();
         } else {
-          this.hide(Service.query('AppWindowManager.getActiveWindow'));
+          var hideTo = Service.query('AppWindowManager.getActiveWindow');
+          if (hideTo.isHomescreen) {
+            var prev = Service.query('AppWindowManager.getPreviousActiveWindow');
+            if (prev) {
+              hideTo = prev;
+            }
+          }
+          this.hide(hideTo);
         }
         return false; // stop the event
       }
