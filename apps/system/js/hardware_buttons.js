@@ -241,6 +241,8 @@
       switch (type) {
         case 'home-button-press':
         case 'home-button-release':
+        case 'holdhome-button-press':
+        case 'holdhome-button-release':
         case 'sleep-button-press':
         case 'sleep-button-release':
         case 'volume-up-button-press':
@@ -296,6 +298,10 @@
           this.hardwareButtons.setState('home', type);
         }
         return;
+      case 'holdhome-button-release':
+        this.hardwareButtons.publish('holdhome');
+        this.hardwareButtons.setState('base');
+        return;
       case 'sleep-button-press':
         /**
          * If the phone is sleeping, then pressing Home wakes it
@@ -322,6 +328,8 @@
       case 'volume-up-button-release':
       case 'volume-down-button-release':
       case 'camera-button-release':
+      case 'holdhome-button-press':
+      case 'devtools-button-press':
         // Ignore button releases that occur in this state.
         // These can happen after volumedown+sleep and home+volume.
         return;
