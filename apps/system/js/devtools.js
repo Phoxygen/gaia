@@ -14,7 +14,6 @@ var DevtoolsDialog = {
 
   // Default event handler
   handleEvent: function md_handleEvent(evt) {
-    var elements = this.elements;
     switch (evt.type) {
       case 'devtools-toggle':
         if (!this.active) {
