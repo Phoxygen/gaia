@@ -97,12 +97,6 @@ window.Settings = {
         'tabletAndLandscaped',
         '(min-width: 768px) and (orientation: landscape)');
       window.addEventListener('screenlayoutchange', this.rotate);
-
-      // WifiHelper is guaranteed to be loaded in main.js before calling to
-      // this line.
-      if (this.isTabletAndLandscape()) {
-        this.currentPanel = this.initialPanelForTablet;
-      }
     }).bind(this));
 
     window.performance.mark('startupPathEnd');
