@@ -262,10 +262,6 @@ html[dir="rtl"] .appWindow.invoked {
   visibility: visible;
 }
 
-.appWindow[transition-state="closed"]:not(.toaster-mode):not(.homescreen) > div.browser-container > iframe {
-  /*visibility: hidden;*/
-}
-
 .appWindow > .fade-overlay {
   background-color: black;
   visibility: hidden;

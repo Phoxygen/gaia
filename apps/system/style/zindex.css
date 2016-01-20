@@ -71,22 +71,12 @@
   z-index: 65535;
 }
 
-/* Promote the transitioning appWindow to this level as the entry and exiting
- * transition of the cards view. */
-#screen > [data-z-index-level="app"] .appWindow.in-task-manager.active:not(.homescreen),
-#screen > [data-z-index-level="app"] .appWindow.in-task-manager.transition-opening:not(.homescreen),
-#screen > [data-z-index-level="app"] .appWindow.in-task-manager.transition-closing.to-cardview:not(.homescreen),
-#screen > [data-z-index-level="app"] .appWindow.in-task-manager.transition-opening.fullscreen-app:not(.homescreen),
-#screen > [data-z-index-level="app"] .appWindow.in-task-manager.transition-closing.fullscreen-app.to-cardview:not(.homescreen) {
-  z-index: 65537 !important;
-}
-
 /* Hide apps behind the wallpaper when they're all made visible for
  * -moz-element.
  */
-#screen #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).in-task-manager {
+/*#screen #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).in-task-manager {
   z-index: -1;
-}
+}*/
 
 #screen > [data-z-index-level="cards-view"],
 #screen > [data-z-index-level="cards-view"] .no-recent-apps {
