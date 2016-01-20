@@ -6,3 +6,4 @@ buddyup,https://marketplace.firefox.com/app/8d979279-a142-4fee-993b-8e7797b221a5
 webmaker,http://webmaker.fxosapps.org/manifest.webapp
 irc,https://marketplace.firefox.com/app/1cb6656d-4e00-4106-90cd-420322c84fd3/manifest.webapp
 polarr,https://v2.polarr.co/manifest.webapp
+wetty,https://raw.githubusercontent.com/Phoxygen/wetty/ronin/public/manifest.webapp,http://localhost:9999
