@@ -27,6 +27,7 @@
     'slowTransition',
     'getActiveApp',
     'getActiveWindow',
+    'getPreviousActiveWindow',
     'isBusyLoading'
   ];
   AppWindowManager.EVENTS = [
@@ -176,6 +177,10 @@
      */
     getActiveWindow: function() {
       return this.getActiveApp();
+    },
+
+    getPreviousActiveWindow: function() {
+      return this._previousActiveApp;
     },
 
     /**
@@ -386,7 +391,6 @@
 
       this.debug('before ready check' + appCurrent + appNext);
       this._updateActiveApp(appNext.instanceID);
-
       appNext.ready(function() {
         if (appNext.isDead() || this._sheetTransitioning) {
           if (!appNext.isHomescreen) {
