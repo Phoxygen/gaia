@@ -3,13 +3,11 @@
     [
       ["apps", "search"],
       ["apps", "email"],
-      ["outoftree_apps", "fireseairc"],
       ["apps", "marketplace.firefox.com"],
       ["apps", "calendar"],
       ["outoftree_apps", "calculator"]
     ], [
       ["apps", "settings"],
-      ["apps", "camera"],
       ["apps", "gallery"],
       ["apps", "video"],
       ["apps", "music"],
@@ -17,9 +15,7 @@
     ], [
       ["apps", "clock"],
       ["outoftree_apps", "notes"],
-      ["outoftree_apps", "webmaker"],
-      ["outoftree_apps", "facebook"],
-      ["outoftree_apps", "buddyup"]
+      ["outoftree_apps", "facebook"]
     ], [
       ["apps", "costcontrol"]
     ]
