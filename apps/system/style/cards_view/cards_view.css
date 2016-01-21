@@ -1,12 +1,12 @@
 #task-manager {
-  visibility: hidden;
   position: absolute;
   top: 0;
-  left: 0;
+  left: 100%;
   width: 100%;
   height: 100%;
   -moz-user-select: none;
   background-color: rgb(51, 51, 51);
+  transition: transform 0.5s ease-in-out;
 }
 
 #cards-view {
@@ -27,12 +27,12 @@
   direction: ltr;
 }
 
-@media not all and (-moz-physical-home-button) {
+/*@media not all and (-moz-physical-home-button) {
   #screen:not(.software-button-disabled) #task-manager {
     height: calc(100% - var(--software-home-button-height));
     bottom: var(--software-home-button-height);
   }
-}
+}*/
 
 /* This reduce overpaint while the cards view is active */
 #screen.cards-view #windows {
@@ -57,6 +57,7 @@
 
 #task-manager.active {
   visibility: inherit;
+  transform: translateX(-100%);
 }
 
 #task-manager .no-recent-apps {

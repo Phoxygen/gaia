@@ -40,10 +40,12 @@
       if (this.app.openAnimation) {
         this.openAnimation = this.app.openAnimation;
       }
+      this.openAnimation = 'immediate';
 
       if (this.app.closeAnimation) {
         this.closeAnimation = this.app.closeAnimation;
       }
+      this.closeAnimation = 'immediate';
 
       if (this.app.CLASS_NAME == 'AppWindow') {
         this.OPENING_TRANSITION_TIMEOUT = 2500;

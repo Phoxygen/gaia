@@ -1,5 +1,10 @@
+.homescreen {
+  background-color: rgba(218, 218, 218, 0.8);
+  transition: transform 0.5s ease-in-out;
+}
+
 .appWindow[transition-state="closed"]:not(.fadeout):not(.homescreen):not(.attentionWindow):not(.lockScreenInputWindow) {
-  opacity: 0;
+  opacity: 1;
   transform: translateX(0);
 }
 
@@ -257,22 +262,26 @@ html[dir="rtl"] .appWindow.invoked {
   visibility: visible;
 }
 
-.appWindow[transition-state="closed"]:not(.toaster-mode) > div.browser-container > iframe {
-  visibility: hidden;
-}
-
 .appWindow > .fade-overlay {
   background-color: black;
   visibility: hidden;
   opacity: 0.8;
 }
 
+/* Slide homescreen to the left when inactive */
+.appWindow.homescreen.inactive {
+  transform: translateX(-100%);
+}
+.appWindow.homescreen.active,
+.appWindow.homescreen.last-active {
+  transform: translateX(0%);
+}
 .appWindow.homescreen.fadeout .fade-overlay.hidden {
   visibility: hidden;
 }
 
-.appWindow.fadeout .fade-overlay {
-  visibility: visible;
+.appWindow.fadeout:not(.homescreen) .fade-overlay {
+  /*visibility: visible; disable fadeoverlay*/
 }
 
 .appWindow.homescreen.fadeout .fade-overlay {
@@ -378,7 +387,8 @@ html[dir="rtl"] .appWindow.invoked {
 }
 
 .appWindow.suspended > .identification-overlay,
-.appWindow:not(.active):not(.in-task-manager).overlay > .identification-overlay {
+.appWindow:not(.active):not(.in-task-manager).overlay > .identification-overlay,
+.appWindow:not(.last-active):not(.in-task-manager).overlay > .identification-overlay {
   transition: none;
 
   visibility: visible;
@@ -595,7 +605,8 @@ html[dir="rtl"] .appWindow.invoked {
   the transform for this case.
   See: https://bugzilla.mozilla.org/show_bug.cgi?id=1212960
 */
-#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).active {
+#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).active,
+#screen:-moz-full-screen-ancestor > #windows > .appWindow:not(.homescreen):not(.lockScreenWindow):not(.attentionWindow):not(.lockScreenInputWindow).last-active {
   transform: unset;
 }
 
@@ -621,6 +632,7 @@ html[dir="rtl"] .appWindow.invoked {
 }
 
 #screen #windows > .appWindow.active:not(.will-become-inactive):not(.back),
+#screen #windows > .appWindow.last-active:not(.will-become-inactive):not(.back),
 #screen #windows > .appWindow.will-become-active,
 #screen #windows > .appWindow.inside-edges {
   opacity: 1;
@@ -651,12 +663,14 @@ html[dir="rtl"] .appWindow.invoked {
   }
 }
 
-#windows .appWindow.active iframe {
+#windows .appWindow.active iframe,
+#windows .appWindow.last-active iframe {
   transition-property: transform;
   transition-duration: var(--transition-duration);
 }
 
-#screen.locked #windows .appWindow.active iframe {
+#screen.locked #windows .appWindow.active iframe,
+#screen.locked #windows .appWindow.last-active iframe {
   transition-property: none;
 }
 

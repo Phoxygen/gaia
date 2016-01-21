@@ -279,14 +279,14 @@ TaskManager.prototype = {
       this.setActive(true);
 
       var activeApp = Service.query('AppWindowManager.getActiveWindow');
+
       if (activeApp && activeApp.isHomescreen) {
-        activeApp.close('home-to-cardview');
-        this.element.classList.add('from-home');
+        activeApp.close('immediate');
       }
 
-      // Wait for the current app to signal that it has closed in preparation
-      // for showing the task manager before cleaning things up.
-      return TaskManagerUtils.waitForAppToClose(activeApp);
+      // ... and when our transition has finished, clean up.
+      return eventSafety(this.element, 'transitionend', 2000);
+
     }).then(() => {
       // Load app icons asynchronously
       this.appToCardMap.forEach((card, app) => {
@@ -295,7 +295,6 @@ TaskManager.prototype = {
 
       this.publish('cardviewshown');
       this.screenElement.classList.add('cards-view');
-      this.element.classList.remove('from-home');
       this.scrollElement.style.overflowX = 'scroll';
       this._isTransitioning = false;
     });
@@ -329,19 +328,20 @@ TaskManager.prototype = {
 
     // Remove '.cards-view' now, so that the incoming app animation begins its
     // transition at the proper scale.
-    this.screenElement.classList.remove('cards-view');
 
     // Set the proper transition...
     if (newApp.isHomescreen) {
       this.element.classList.add('to-home');
-      newApp.open('home-from-cardview');
+      newApp.open('immediate');
     } else {
-      newApp.open(animation || 'from-cardview');
+      newApp.open(animation);
     }
 
+    this.screenElement.classList.remove('cards-view');
+    this.setActive(false);
+
     // ... and when the transition has finished, clean up.
-    return eventSafety(newApp.element, 'animationend', (e) => {
-      this.setActive(false);
+    return eventSafety(this.element, 'transitionend', (e) => {
       this.publish('cardviewclosed', { detail: newApp });
       this.element.classList.remove('to-home');
       this.element.classList.remove('filtered');
@@ -565,8 +565,17 @@ TaskManager.prototype = {
       } else if (evt.type === 'holdhome') {
         if (!this.isShown()) {
           this.show();
-          return false; // stop the event
+        } else {
+          var hideTo = Service.query('AppWindowManager.getActiveWindow');
+          if (hideTo.isHomescreen) {
+            var prev = Service.query('AppWindowManager.getPreviousActiveWindow');
+            if (prev) {
+              hideTo = prev;
+            }
+          }
+          this.hide(hideTo);
         }
+        return false; // stop the event
       }
     }
     return true; // keep the event flowing

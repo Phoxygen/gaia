@@ -27,6 +27,7 @@
     'slowTransition',
     'getActiveApp',
     'getActiveWindow',
+    'getPreviousActiveWindow',
     'isBusyLoading'
   ];
   AppWindowManager.EVENTS = [
@@ -178,6 +179,10 @@
       return this.getActiveApp();
     },
 
+    getPreviousActiveWindow: function() {
+      return this._previousActiveApp;
+    },
+
     /**
      * Get active app. If active app is null, we'll return homescreen as
      * default.
@@ -297,11 +302,17 @@
      * @param {String} [closeAnimation] The close animation for closing app.
      * @memberOf module:AppWindowManager
      */
+
+    _previousActiveApp: null,
     display: function awm_display(newApp, openAnimation, closeAnimation,
                                   eventType) {
       this._dumpAllWindows();
       var appCurrent = this._activeApp;
       var appNext = newApp || this.service.query('getHomescreen', true);
+
+      if (!newApp && appCurrent.isHomescreen && this._previousActiveApp) {
+        appNext = this._previousActiveApp;
+      }
 
       if (!appNext) {
         this.debug('no next app.');
@@ -380,7 +391,6 @@
 
       this.debug('before ready check' + appCurrent + appNext);
       this._updateActiveApp(appNext.instanceID);
-
       appNext.ready(function() {
         if (appNext.isDead() || this._sheetTransitioning) {
           if (!appNext.isHomescreen) {
@@ -918,6 +928,15 @@
         activated = true;
       }
 
+      if (this._previousActiveApp && this._previousActiveApp.element) {
+        this._previousActiveApp.element.classList.remove('last-active');
+      }
+      if (this._activeApp && !this._activeApp.isHomescreen) {
+        this._previousActiveApp = this._activeApp;
+      }
+      if (this._previousActiveApp && this._previousActiveApp.element) {
+        this._previousActiveApp.element.classList.add('last-active');
+      }
       this._activeApp = this._apps[instanceID];
       if (!this._activeApp) {
         this.debug('no active app alive: ' + instanceID);

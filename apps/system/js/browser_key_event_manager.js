@@ -15,6 +15,7 @@
     SYSTEM_ONLY_KEYS: Object.freeze([
       'power',
       'home',
+      'end',
       'mozhomescreen',
       'exit',
       'os',
@@ -29,6 +30,7 @@
     // Home key has different .key values on different devices.
     HOME_KEY_ALIAS: Object.freeze([
       'home',
+      'end',
       'mozhomescreen',
       'exit',
       'os', // super key on linux
@@ -38,6 +40,7 @@
       'power': 'sleep-button',
       'exit': 'home-button',
       'home': 'home-button',
+      'end': 'holdhome-button',
       'mozhomescreen': 'home-button',
       'os': 'home-button',
       'meta': 'home-button',
