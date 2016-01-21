@@ -1,7 +1,6 @@
 {
   "homescreens": [
     [
-      ["apps", "search"],
       ["apps", "email"],
       ["apps", "marketplace.firefox.com"],
       ["apps", "calendar"],
