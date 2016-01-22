@@ -43,10 +43,16 @@
 
         var syncSmallSetting = (signal) => {
           stores[0].get(COLUMNS_SETTING).then(cols => {
-            var oldSmall = this.small;
-            this.small = cols > 3;
-            if (this.small !== oldSmall) {
-              signalChange();
+            if (cols) {
+              var oldSmall = this.small;
+              this.small = cols > 3;
+              if (this.small !== oldSmall) {
+                signalChange();
+              }
+            } else {
+              stores[0].add(this.small ? 6 : 3, COLUMNS_SETTING).catch(e => {
+                console.error('Error storing homescreen cols setting', e);
+              });
             }
           });
         };
