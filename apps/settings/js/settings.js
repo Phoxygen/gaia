@@ -16,7 +16,10 @@ window.Settings = {
   },
 
   isTabletAndLandscape: function is_tablet_and_landscape() {
-    return this.ScreenLayout.getCurrentLayout('tabletAndLandscaped');
+    // XXX: the 2 columns mode layout is broken but it'd be nice
+    // to enable it
+    return false;
+    // return this.ScreenLayout.getCurrentLayout('tabletAndLandscaped');
   },
 
   _isTabletAndLandscapeLastTime: null,
