@@ -149,6 +149,13 @@
           var small = !!(json.preferences && json.preferences[COLS_PREF] &&
             (json.preferences[COLS_PREF] > 3));
 
+          // update data store
+          navigator.getDataStores(HOMESCREEN_SETTINGS).then(stores => {
+            stores[0].put(small ? 6 : 3, COLS_PREF);
+          }).catch(e => {
+            console.error('Error storing homescreen cols setting', e);
+          });
+
           var order = [];
           if (json.grid) {
             var index = 0;
