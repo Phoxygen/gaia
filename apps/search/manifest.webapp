@@ -73,5 +73,6 @@
       "disposition": "window",
       "href": "/index.html"
     }
-  }
+  },
+  "role": "system"
 }
