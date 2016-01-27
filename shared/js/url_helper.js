@@ -51,9 +51,13 @@ var UrlHelper = {
       return false;
     }
     // require basic scheme before form validation
-    if (!this.hasScheme(str)) {
+    var scheme = this._getScheme(str);
+    if (!scheme) {
       str = 'http://' + str;
+    } else if (scheme === 'about:' || scheme === 'chrome://') {
+      return false;
     }
+
     if (!this.urlValidate) {
       this.urlValidate = document.createElement('input');
       this.urlValidate.setAttribute('type', 'url');
