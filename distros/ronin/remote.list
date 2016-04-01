@@ -4,3 +4,4 @@ notes,https://marketplace.firefox.com/app/dcdaeefc-26f4-4af6-ad22-82eb93beadcd/m
 polarr,https://v2.polarr.co/manifest.webapp
 wetty,https://raw.githubusercontent.com/Phoxygen/wetty/ronin/public/manifest.webapp,http://localhost:9999
 filemanager,https://marketplace.firefox.com/app/56a871cb-134c-40b2-9cb2-d5ed8c06171c/manifest.webapp
+gedit,https://raw.githubusercontent.com/Phoxygen/Ronin/master/gedit/manifest.webapp,http://localhost:9998
